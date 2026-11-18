@@ -65,12 +65,13 @@ Entregar relatório curto com: critérios atendidos / não atendidos, desvios do
 - **Sem shell arbitrário no MVP;** lista explícita de ações permitidas.
 - **Fluxo é JSON versionado**; dados visuais separados da config executável.
 - **Prioridade de automação de UI:** UI Automation > janela/processo > Playwright > imagem/OCR > coordenadas (último recurso).
+- **Banco:** `node:sqlite` (embutido no Node/Electron, sem módulo nativo). Migrações em `/database/migrations/NNNN_*.sql`, nunca editar uma já aplicada: criar nova (ADR 0004).
 - Decisões listadas em `ARCHITECTURE.md` §15 (lib de automação Windows, OCR, agendamento, etc.) ficam abertas até haver protótipo em Windows real.
 
 ## Ambiente e verificação
 
 - O desenvolvimento ocorre em container **Linux**; o alvo é **Windows**. Lógica pura (schema, validador, interpretador, protocolo, banco) é testável aqui. Ações de mouse/teclado/janelas/UI Automation, DPI, instalador e agendador **não são verificáveis aqui** — marcar como "não verificado em Windows" e pedir ao Hector para validar na máquina real. Nunca declarar pronto o que só foi lido, não executado.
-- Comandos: ver `docs/CONVENTIONS.md`. Antes de qualquer commit: `npm run check` (lint + build + test + test:py). Convenções de branch, commit e versionamento também estão lá.
+- Comandos: ver `docs/CONVENTIONS.md`. Antes de qualquer commit: `npm run check` (lint + typecheck + build + test + test:py). Mudanças de UI/Main/IPC também exigem `npm run test:e2e` (em Linux: `xvfb-run -a npm run test:e2e`). Convenções de branch, commit e versionamento também estão lá.
 
 ## Convenções de trabalho
 

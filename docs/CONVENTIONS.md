@@ -6,12 +6,15 @@ Pré-requisitos: Node ≥ 22, Python ≥ 3.11 com `pytest`.
 
 | Comando | O que faz |
 |---|---|
-| `npm install` / `npm ci` | Instala dependências (workspaces) |
-| `npm run build` | Compila todos os workspaces TypeScript |
+| `npm install` / `npm ci` | Instala dependências (workspaces). O postinstall do Electron baixa o binário |
+| `npm run dev` (em `apps/desktop`) | Abre o app em modo desenvolvimento com HMR |
+| `npm run build` | Compila o app (`apps/desktop/out/`) |
 | `npm run lint` | ESLint (TypeScript) |
-| `npm test` | Vitest (testes TypeScript) |
+| `npm run typecheck` | `tsc --noEmit` em todos os workspaces |
+| `npm test` | Vitest (unitário/integração: banco, serviços, IPC) |
 | `npm run test:py` | pytest (motor Python) |
-| `npm run check` | lint + build + test + test:py — rodar antes de todo commit |
+| `npm run check` | lint + typecheck + build + test + test:py — rodar antes de todo commit |
+| `npm run test:e2e` | Compila e roda o app Electron real com Playwright. **Exige tela**: no Windows roda direto; em Linux sem display use `xvfb-run -a npm run test:e2e` |
 
 ## Código
 

@@ -1,0 +1,49 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Tokens do design system: trocar o tema = trocar estas variáveis. */
+:root {
+  --bg: #f6f7f9;
+  --panel: #ffffff;
+  --border: #d9dde5;
+  --fg: #14171f;
+  --muted: #566075;
+  --brand: #2f5bea;
+  --brand-fg: #ffffff;
+  --danger: #c62828;
+  --ok: #1b7f3b;
+  color-scheme: light;
+}
+.dark {
+  --bg: #0f1218;
+  --panel: #171b24;
+  --border: #2a3040;
+  --fg: #e8ebf2;
+  --muted: #9aa3b5;
+  --brand: #7c97ff;
+  --brand-fg: #0b0e14;
+  --danger: #ff7b7b;
+  --ok: #5fd18a;
+  color-scheme: dark;
+}
+@theme inline {
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-line: var(--border);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-brand: var(--brand);
+  --color-brand-fg: var(--brand-fg);
+  --color-danger: var(--danger);
+  --color-ok: var(--ok);
+  --font-sans: "Segoe UI", system-ui, sans-serif;
+}
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+}
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}

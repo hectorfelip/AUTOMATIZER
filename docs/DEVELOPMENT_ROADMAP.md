@@ -28,17 +28,17 @@ Desenvolver em entregas verticais. Cada fase deve terminar com algo executável 
 ## Fase 1 — Shell desktop e persistência
 
 ### Tarefas
-- [ ] Configurar Electron.
-- [ ] Configurar React, TypeScript e Tailwind.
-- [ ] Implementar janela principal.
-- [ ] Implementar navegação lateral.
-- [ ] Criar design system inicial.
-- [ ] Configurar preload e IPC seguro.
-- [ ] Integrar SQLite.
-- [ ] Criar migração inicial.
-- [ ] Implementar CRUD de automações.
-- [ ] Implementar dashboard inicial.
-- [ ] Implementar tela de configurações.
+- [x] Configurar Electron.
+- [x] Configurar React, TypeScript e Tailwind.
+- [x] Implementar janela principal.
+- [x] Implementar navegação lateral.
+- [x] Criar design system inicial.
+- [x] Configurar preload e IPC seguro.
+- [x] Integrar SQLite.
+- [x] Criar migração inicial.
+- [x] Implementar CRUD de automações.
+- [x] Implementar dashboard inicial.
+- [x] Implementar tela de configurações.
 
 ### Critérios de aceite
 - Aplicativo abre como programa desktop.
