@@ -74,6 +74,7 @@ Desenvolver em entregas verticais. Cada fase deve terminar com algo executável 
 
 ### Tarefas
 - [ ] Criar processo Python empacotável.
+- [ ] Spike de empacotamento: gerar o motor como executável (ex.: PyInstaller) com pywinauto/PyAutoGUI e iniciá-lo pelo Electron em Windows real, para descobrir incompatibilidades antes da Fase 9.
 - [ ] Implementar protocolo JSON Lines.
 - [ ] Implementar inicialização e encerramento do motor.
 - [ ] Implementar heartbeat/status do motor.
@@ -92,6 +93,7 @@ Desenvolver em entregas verticais. Cada fase deve terminar com algo executável 
 - Eventos aparecem na interface.
 - Falha do motor não encerra o aplicativo.
 - Logs de protocolo não são misturados com stdout de diagnóstico.
+- Motor empacotado inicia e responde ao heartbeat em Windows sem Python global instalado (validado pelo Hector em máquina real).
 
 ## Fase 4 — Biblioteca essencial de ações
 
@@ -141,13 +143,23 @@ Desenvolver em entregas verticais. Cada fase deve terminar com algo executável 
 - Histórico continua disponível após reiniciar o aplicativo.
 - Cancelamento não deixa o motor em estado inconsistente.
 
-## Fase 6 — Importação, exportação e agendamento
+## Fase 6a — Importação e exportação (MVP)
 
 ### Tarefas
 - [ ] Exportar workflow JSON.
 - [ ] Importar com validação.
 - [ ] Mostrar resumo do conteúdo importado.
 - [ ] Rejeitar schemas desconhecidos ou inválidos.
+
+### Critérios de aceite
+- Fluxo exportado pode ser importado em outra instalação compatível.
+- Importação nunca inicia execução automaticamente.
+
+## Fase 6b — Agendamento (pós-MVP)
+
+Só inicia após a Fase 6a aceita; não bloqueia o MVP.
+
+### Tarefas
 - [ ] Criar agendamento único.
 - [ ] Criar agendamento diário e semanal.
 - [ ] Integrar com Agendador de Tarefas do Windows.
@@ -156,8 +168,6 @@ Desenvolver em entregas verticais. Cada fase deve terminar com algo executável 
 - [ ] Documentar limitações de sessão interativa.
 
 ### Critérios de aceite
-- Fluxo exportado pode ser importado em outra instalação compatível.
-- Importação nunca inicia execução automaticamente.
 - Agendamentos são visíveis, editáveis e podem ser desativados.
 
 ## Fase 7 — Gravador e automação web
@@ -233,9 +243,10 @@ Desenvolver em entregas verticais. Cada fase deve terminar com algo executável 
 - Variáveis, condições e repetição.
 - Logs e histórico.
 - Cancelamento.
-- Importação e exportação.
+- Importação e exportação (Fase 6a).
 
 ### Importante, mas posterior
+- Agendamento (Fase 6b).
 - Gravador.
 - Automação web.
 - OCR.

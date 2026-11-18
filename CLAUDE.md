@@ -70,7 +70,7 @@ Entregar relatório curto com: critérios atendidos / não atendidos, desvios do
 ## Ambiente e verificação
 
 - O desenvolvimento ocorre em container **Linux**; o alvo é **Windows**. Lógica pura (schema, validador, interpretador, protocolo, banco) é testável aqui. Ações de mouse/teclado/janelas/UI Automation, DPI, instalador e agendador **não são verificáveis aqui** — marcar como "não verificado em Windows" e pedir ao Hector para validar na máquina real. Nunca declarar pronto o que só foi lido, não executado.
-- Comandos de build/test/lint serão documentados aqui assim que a Fase 0 os definir (critério de aceite da Fase 0).
+- Comandos: ver `docs/CONVENTIONS.md`. Antes de qualquer commit: `npm run check` (lint + build + test + test:py). Convenções de branch, commit e versionamento também estão lá.
 
 ## Convenções de trabalho
 
