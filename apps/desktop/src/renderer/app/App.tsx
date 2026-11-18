@@ -8,6 +8,8 @@ import { EditorPage } from "../features/editor/EditorPage";
 import { SettingsPage } from "../features/settings/SettingsPage";
 import { useAutomations } from "../stores/automations";
 import { isDirty, useEditor } from "../stores/editor";
+import { useEngine } from "../stores/engine";
+import { useRun } from "../stores/run";
 import { useSettings } from "../stores/settings";
 
 function useApplyTheme() {
@@ -32,6 +34,12 @@ export function App() {
   useEffect(() => {
     void useAutomations.getState().load();
     void useSettings.getState().load();
+    const offEngine = useEngine.getState().init();
+    const offRun = useRun.getState().init();
+    return () => {
+      offEngine();
+      offRun();
+    };
   }, []);
 
   /** Troca de tela; se o editor tem alterações não salvas, pergunta antes. */

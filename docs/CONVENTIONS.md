@@ -2,7 +2,7 @@
 
 ## Comandos (raiz do repositório)
 
-Pré-requisitos: Node ≥ 22, Python ≥ 3.11 com `pytest`.
+Pré-requisitos: Node ≥ 22 e **Python ≥ 3.11 com `pytest`** (necessário também para os testes de integração Node↔Python e para os e2e: o motor é iniciado de verdade).
 
 | Comando | O que faz |
 |---|---|
@@ -15,6 +15,18 @@ Pré-requisitos: Node ≥ 22, Python ≥ 3.11 com `pytest`.
 | `npm run test:py` | pytest (motor Python) |
 | `npm run check` | lint + typecheck + build + test + test:py — rodar antes de todo commit |
 | `npm run test:e2e` | Compila e roda o app Electron real com Playwright. **Exige tela**: no Windows roda direto; em Linux sem display use `xvfb-run -a npm run test:e2e` |
+
+### Motor Python
+
+| Comando / variável | O que faz |
+|---|---|
+| `python scripts/build-engine.py` | Gera o executável do motor (PyInstaller) em `engine/python/dist/` — ver `docs/engine-packaging.md` |
+| `python scripts/verify-engine.py <exe> [--clean-path]` | Verifica um executável do motor (protocolo, cancelamento, imports) |
+| `AUTOMATION_STUDIO_PYTHON` | Python a usar em desenvolvimento (padrão: `py -3` no Windows, `python3` nos demais) |
+| `AUTOMATION_STUDIO_ENGINE` | Caminho de um executável do motor (vence tudo; usado para validar o empacotamento) |
+| `AUTOMATION_ENGINE_TEST_ACTIONS=1` | Habilita ações de teste (travar, cair, poluir stdout). **Só em testes, nunca em produção** |
+
+Protocolo: `docs/PROTOCOL.md`.
 
 ## Código
 

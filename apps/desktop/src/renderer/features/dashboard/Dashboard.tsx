@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Badge } from "../../components/ui/Badge";
 import { Button } from "../../components/ui/Button";
 import { useAutomations } from "../../stores/automations";
+import { describeEngine, useEngine } from "../../stores/engine";
 
 function Card({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -15,6 +16,7 @@ function Card({ title, children }: { title: string; children: ReactNode }) {
 export function Dashboard({ onCreate }: { onCreate: () => void }) {
   const items = useAutomations((s) => s.items);
   const active = items.filter((a) => a.status === "active").length;
+  const engine = describeEngine(useEngine((s) => s.status));
 
   return (
     <section className="flex flex-col gap-6">
@@ -34,8 +36,10 @@ export function Dashboard({ onCreate }: { onCreate: () => void }) {
           <p className="text-3xl font-semibold">{items.length - active}</p>
         </Card>
         <Card title="Motor de automação">
-          <Badge tone="muted">Indisponível</Badge>
-          <p className="mt-2 text-sm text-muted">O motor ainda não foi instalado nesta versão.</p>
+          <div data-testid="engine-status">
+            <Badge tone={engine.ready ? "ok" : engine.label === "Indisponível" ? "danger" : "muted"}>{engine.label}</Badge>
+            <p className="mt-2 text-sm text-muted">{engine.detail}</p>
+          </div>
         </Card>
       </div>
       <Card title="Execuções recentes">

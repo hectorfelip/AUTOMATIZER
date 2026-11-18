@@ -4,6 +4,8 @@
  */
 
 import type { WorkflowDocument } from "@automation-studio/workflow-schema";
+import type { EngineStatus } from "./engine.js";
+import type { ExecutionEvent, StartExecutionResult } from "./execution.js";
 
 // ---- Entidades ----
 export type AutomationStatus = "active" | "archived";
@@ -40,8 +42,6 @@ export interface WorkflowSaveResult {
 export interface AppInfo {
   version: string;
   dataPath: string;
-  /** Motor Python: ainda não implementado (Fase 3). */
-  engineStatus: "unavailable";
 }
 
 // ---- Tipos de entrada (espelham os schemas em schemas.ts) ----
@@ -63,12 +63,18 @@ export interface SaveWorkflowInput {
   automationId: string;
   document: WorkflowDocument;
 }
+export interface StartExecutionInput {
+  document: WorkflowDocument;
+}
+export interface CancelExecutionInput {
+  executionId: string;
+}
 export interface SettingsPatch {
   theme?: Theme;
 }
 
 // ---- Resultado ----
-export type ErrorCode = "VALIDATION" | "NOT_FOUND" | "INVALID_DATA" | "UNTRUSTED_SENDER" | "INTERNAL";
+export type ErrorCode = "VALIDATION" | "NOT_FOUND" | "INVALID_DATA" | "ENGINE_UNAVAILABLE" | "EXECUTION_BUSY" | "UNTRUSTED_SENDER" | "INTERNAL";
 export type IpcResult<T> =
   | { ok: true; data: T }
   | { ok: false; error: { code: ErrorCode; message: string } };
@@ -83,9 +89,18 @@ export const IPC = {
   automationsDelete: "automations:delete",
   workflowsLoad: "workflows:load",
   workflowsSave: "workflows:save",
+  engineStatus: "engine:status",
+  executionsStart: "executions:start",
+  executionsCancel: "executions:cancel",
   settingsGet: "settings:get",
   settingsUpdate: "settings:update",
   appInfo: "app:info",
+} as const;
+
+/** Canais de eventos empurrados pelo Main (não são `invoke`). */
+export const PUSH = {
+  engineStatus: "engine:status-changed",
+  executionEvent: "executions:event",
 } as const;
 
 // ---- API exposta ao renderer via preload (window.api) ----
@@ -101,6 +116,16 @@ export interface DesktopApi {
   workflows: {
     load(input: LoadWorkflowInput): Promise<IpcResult<WorkflowLoadResult>>;
     save(input: SaveWorkflowInput): Promise<IpcResult<WorkflowSaveResult>>;
+  };
+  engine: {
+    status(): Promise<IpcResult<EngineStatus>>;
+    /** Retorna a função que cancela a assinatura. */
+    onStatusChange(listener: (status: EngineStatus) => void): () => void;
+  };
+  executions: {
+    start(input: StartExecutionInput): Promise<IpcResult<StartExecutionResult>>;
+    cancel(input: CancelExecutionInput): Promise<IpcResult<null>>;
+    onEvent(listener: (event: ExecutionEvent) => void): () => void;
   };
   settings: {
     get(): Promise<IpcResult<AppSettings>>;

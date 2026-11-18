@@ -6,7 +6,7 @@ test("abre como app desktop com dashboard e navegação lateral", async () => {
   await expect(page).toHaveTitle("Automation Studio");
   await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
   await expect(page.getByTestId("active-count")).toHaveText("0");
-  await expect(page.getByText("Indisponível")).toBeVisible();
+  await expect(page.getByTestId("engine-status")).toContainText("Disponível", { timeout: 15_000 }); // o motor Python iniciou
 
   const nav = page.getByRole("navigation", { name: "Principal" });
   await nav.getByRole("button", { name: "Automações" }).click();
@@ -101,9 +101,11 @@ test("renderer não tem acesso a Node e a API exposta é mínima", async () => {
   const csp = await page.locator('meta[http-equiv="Content-Security-Policy"]').getAttribute("content");
   expect(csp).toContain("script-src 'self'");
   expect(csp).not.toContain("unsafe-eval");
-  expect(probe.api).toEqual(["app", "automations", "settings", "workflows"]);
+  expect(probe.api).toEqual(["app", "automations", "engine", "executions", "settings", "workflows"]);
   expect(probe.apiMethods["automations"]).toEqual(["archive", "create", "delete", "list", "rename", "restore"]);
   expect(probe.apiMethods["workflows"]).toEqual(["load", "save"]);
+  expect(probe.apiMethods["engine"]).toEqual(["onStatusChange", "status"]);
+  expect(probe.apiMethods["executions"]).toEqual(["cancel", "onEvent", "start"]);
 
   const prefs = await app.evaluate(({ BrowserWindow }) => {
     // getLastWebPreferences existe em runtime, mas não consta nos tipos públicos do Electron.

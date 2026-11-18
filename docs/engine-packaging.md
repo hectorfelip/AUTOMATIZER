@@ -1,0 +1,41 @@
+# Spike de empacotamento do motor Python
+
+**Objetivo (Fase 3):** provar que o motor vira um executável que roda **sem Python instalado** e que `pywinauto`/`pyautogui` entram nele. Descobrir agora, e não na Fase 9, se o PyInstaller briga com essas bibliotecas.
+
+**Status:** mecanismo validado em Linux (35 MB, handshake em 0,05 s, funciona com PATH sem Python, Electron o inicia). **Falta validar no Windows.**
+
+## Passo a passo no Windows (PowerShell, na raiz do projeto)
+
+O Python 3.11+ só é necessário aqui, para *gerar* o executável. O usuário final não precisará dele.
+
+```bash
+py -3 -m venv .venv-engine
+.\.venv-engine\Scripts\Activate.ps1
+pip install -r engine\python\requirements-build.txt -r engine\python\requirements-windows.txt
+python scripts\build-engine.py
+python scripts\verify-engine.py engine\python\dist\automation-engine\automation-engine.exe --clean-path
+```
+
+O `verify-engine.py` confere: o `.exe` roda, `pywinauto` e `pyautogui` **importam dentro do executável congelado**, handshake `ready`, `ping`, uma ação, cancelamento, `shutdown` e stdout limpo. `--clean-path` tira o Python do PATH para simular uma máquina sem Python. No fim ele imprime `PASSOU` ou lista o que falhou.
+
+Teste opcional, o app inteiro usando o executável:
+
+```bash
+$env:AUTOMATION_STUDIO_ENGINE = "$PWD\engine\python\dist\automation-engine\automation-engine.exe"
+npm run dev -w @automation-studio/desktop
+```
+
+No Dashboard, o card "Motor de automação" deve mostrar **Disponível**. Depois abra uma automação e use **Executar**.
+
+## O que reportar
+- A saída completa do `verify-engine.py` (e do `build-engine.py`, se falhar).
+- Windows Defender ou SmartScreen bloqueou ou reclamou do `.exe`? (executáveis PyInstaller costumam gerar falso positivo.)
+- Quanto tempo levou o handshake (`responde 'ready' — X s`) e quantos MB a pasta tem.
+
+## Riscos a observar
+- **Antivírus:** PyInstaller novo/não assinado pode ser sinalizado. Mitigação: assinar o instalador (Fase 9).
+- **onedir vs onefile:** usamos `onedir` (inicia mais rápido, sem extrair a cada execução). `onefile` é um único arquivo, porém lento e mais sujeito a antivírus.
+- **DPI:** `pyautogui` precisa declarar DPI awareness para coordenadas corretas (Fase 4).
+
+## Onde o executável é procurado
+`resources/engine/automation-engine(.exe)` no app instalado, ou o caminho em `AUTOMATION_STUDIO_ENGINE` (ver `docs/CONVENTIONS.md`).

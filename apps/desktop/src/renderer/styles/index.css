@@ -66,3 +66,6 @@ body {
   background: var(--brand);
   border: 2px solid var(--panel);
 }
+progress {
+  accent-color: var(--brand);
+}

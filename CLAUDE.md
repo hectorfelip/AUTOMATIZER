@@ -58,7 +58,8 @@ Entregar relatório curto com: critérios atendidos / não atendidos, desvios do
 
 - **Segurança Electron:** `contextIsolation` on, `nodeIntegration` off, preload mínimo e tipado, todo argumento de IPC validado, sem API genérica de fs/shell no renderer.
 - **Sem `eval`** nem execução de expressão arbitrária vinda do fluxo; expressões por mecanismo limitado e tipado.
-- **Protocolo:** stdout do Python é exclusivo do protocolo (JSON Lines); diagnóstico vai para stderr. Validar tamanho/formato das mensagens.
+- **Protocolo:** stdout do Python é exclusivo do protocolo (JSON Lines); diagnóstico vai para stderr. Validar tamanho/formato das mensagens nos dois lados. Especificação em `docs/PROTOCOL.md`; mudou o protocolo, atualize o doc e `ENGINE_PROTOCOL_VERSION`.
+- **Execução:** o interpretador nunca executa fluxo com erros de validação; falha do motor é estado do app (mensagem clara), nunca exceção não tratada; ações de teste do motor só com `AUTOMATION_ENGINE_TEST_ACTIONS=1`.
 - **Importação nunca executa automaticamente.** Validar schema e versão; rejeitar o desconhecido.
 - **Segredos** só no Windows Credential Manager — nunca em `definition_json`, logs ou exportações.
 - **Ações destrutivas** (excluir, sobrescrever) exigem confirmação e são testadas só em diretórios temporários.
@@ -72,6 +73,7 @@ Entregar relatório curto com: critérios atendidos / não atendidos, desvios do
 ## Ambiente e verificação
 
 - O desenvolvimento ocorre em container **Linux**; o alvo é **Windows**. Lógica pura (schema, validador, interpretador, protocolo, banco) é testável aqui. Ações de mouse/teclado/janelas/UI Automation, DPI, instalador e agendador **não são verificáveis aqui** — marcar como "não verificado em Windows" e pedir ao Hector para validar na máquina real. Nunca declarar pronto o que só foi lido, não executado.
+- Os testes exigem **Python ≥ 3.11** (pytest, integração Node↔Python e e2e iniciam o motor de verdade). Empacotamento do motor: `docs/engine-packaging.md` (só se valida em Windows).
 - Comandos: ver `docs/CONVENTIONS.md`. Antes de qualquer commit: `npm run check` (lint + typecheck + build + test + test:py). Mudanças de UI/Main/IPC também exigem `npm run test:e2e` (em Linux: `xvfb-run -a npm run test:e2e`). Convenções de branch, commit e versionamento também estão lá.
 
 ## Convenções de trabalho

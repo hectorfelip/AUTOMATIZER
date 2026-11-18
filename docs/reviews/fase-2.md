@@ -33,12 +33,15 @@ Os 5 e2e da Fase 1 continuam passando. Uma asserção foi atualizada **de propó
 Copiar/colar, comentários e agrupamento visual (SPEC §4.3), edição de `settings` do fluxo na UI, persistir zoom/pan, favoritar/duplicar automação (Fase 1 do SPEC §4.2).
 
 ## Débitos técnicos / riscos
-- **Acessibilidade:** conectar nós só funciona com mouse. SPEC §5 pede alternativa de teclado → proposta: seção "Saídas" no painel de propriedades com um seletor de destino por porta (também ajuda quem não acerta o handle de 12 px). **Peço aprovação.**
+- **Acessibilidade:** conectar nós só funciona com mouse. SPEC §5 pede alternativa de teclado → proposta: seção "Saídas" no painel de propriedades com um seletor de destino por porta. **Adiado por decisão do Hector.**
 - Canvas fica estreito em janela de 1280 px (sidebar + paleta + painel somam ~750 px). Considerar recolher a sidebar do app no editor.
 - Sem teste de desempenho do canvas com centenas de nós (o validador foi testado com 1500).
 - `isDirty` serializa o documento a cada mudança (marcado com `ponytail:`).
 - Sem testes de componente React; a cobertura da UI é e2e.
 - Atribuição "React Flow" mantida visível (licença).
 
-## Não verificável aqui (precisa do Hector no Windows)
-Arrastar-e-soltar HTML5 dentro do Electron no Windows, atalhos (Ctrl), diálogo nativo ao fechar a janela, DPI/escala, fontes.
+## Windows
+✅ Validado pelo Hector: arrastar da paleta, ligar nós, configurar, salvar e reabrir (Início → Esperar → Fim). Não exercitados no Windows: diálogo nativo ao fechar com alterações pendentes, DPI/escala.
+
+## Decisões do Hector
+ADR 0005 aprovado (visual separado, 18 contratos, React Flow 13). Alternativa de teclado para ligar nós: **adiada** (débito registrado acima).

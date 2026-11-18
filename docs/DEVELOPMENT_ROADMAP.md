@@ -73,19 +73,19 @@ Desenvolver em entregas verticais. Cada fase deve terminar com algo executável 
 ## Fase 3 — Protocolo e motor mínimo
 
 ### Tarefas
-- [ ] Criar processo Python empacotável.
-- [ ] Spike de empacotamento: gerar o motor como executável (ex.: PyInstaller) com pywinauto/PyAutoGUI e iniciá-lo pelo Electron em Windows real, para descobrir incompatibilidades antes da Fase 9.
-- [ ] Implementar protocolo JSON Lines.
-- [ ] Implementar inicialização e encerramento do motor.
-- [ ] Implementar heartbeat/status do motor.
-- [ ] Implementar registro de ações.
-- [ ] Criar interpretador básico no Node.
-- [ ] Criar contexto isolado por execução.
-- [ ] Implementar eventos de início, progresso e conclusão.
-- [ ] Implementar timeout.
-- [ ] Implementar cancelamento cooperativo.
-- [ ] Implementar tratamento de falha de comunicação.
-- [ ] Criar testes de integração Node/Python.
+- [x] Criar processo Python empacotável.
+- [ ] Spike de empacotamento: gerar o motor como executável (ex.: PyInstaller) com pywinauto/PyAutoGUI e iniciá-lo pelo Electron em Windows real, para descobrir incompatibilidades antes da Fase 9. *(scripts prontos e validados em Linux; falta rodar no Windows: `docs/engine-packaging.md`)*
+- [x] Implementar protocolo JSON Lines.
+- [x] Implementar inicialização e encerramento do motor.
+- [x] Implementar heartbeat/status do motor.
+- [x] Implementar registro de ações.
+- [x] Criar interpretador básico no Node.
+- [x] Criar contexto isolado por execução.
+- [x] Implementar eventos de início, progresso e conclusão.
+- [x] Implementar timeout.
+- [x] Implementar cancelamento cooperativo.
+- [x] Implementar tratamento de falha de comunicação.
+- [x] Criar testes de integração Node/Python.
 
 ### Critérios de aceite
 - Aplicativo inicia o motor e identifica sua disponibilidade.

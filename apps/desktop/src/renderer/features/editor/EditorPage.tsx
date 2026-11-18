@@ -1,16 +1,19 @@
 import { ReactFlowProvider } from "@xyflow/react";
 import { useEffect, useState } from "react";
 import { Button } from "../../components/ui/Button";
+import { describeEngine, useEngine } from "../../stores/engine";
 import { currentDoc, isDirty, issuesOf, useEditor } from "../../stores/editor";
+import { useRun } from "../../stores/run";
 import * as H from "./history";
 import { duplicateNodes } from "./docOps";
 import { FlowCanvas } from "./FlowCanvas";
+import { ExecutionPanel } from "./ExecutionPanel";
 import { IssuesPanel } from "./IssuesPanel";
 import { NodePalette } from "./NodePalette";
 import { PropertiesPanel } from "./PropertiesPanel";
 import { VariablesPanel } from "./VariablesPanel";
 
-type Tab = "props" | "vars" | "issues";
+type Tab = "props" | "vars" | "issues" | "run";
 
 function useShortcuts() {
   useEffect(() => {
@@ -65,6 +68,8 @@ function Shell({ onBack }: { onBack: () => void }) {
   const dirty = useEditor(isDirty);
   const { version, saving, saveError, history } = useEditor();
   const [tab, setTab] = useState<Tab>("props");
+  const engine = describeEngine(useEngine((s) => s.status));
+  const running = useRun((s) => s.running);
   const selectedCount = useEditor((s) => s.selectedNodes.length);
   const issues = issuesOf(doc);
   const errors = issues.filter((i) => i.severity === "error").length;
@@ -77,7 +82,12 @@ function Shell({ onBack }: { onBack: () => void }) {
 
   const status = dirty ? "● Alterações não salvas" : version > 0 ? `Salvo (versão ${version})` : "Ainda não salvo";
   const summary = issues.length === 0 ? "Fluxo válido" : [errors && `${errors} erro${errors > 1 ? "s" : ""}`, warnings && `${warnings} aviso${warnings > 1 ? "s" : ""}`].filter(Boolean).join(" · ");
-  const tabs: [Tab, string][] = [["props", "Propriedades"], ["vars", "Variáveis"], ["issues", `Problemas (${issues.length})`]];
+  const tabs: [Tab, string][] = [["props", "Propriedades"], ["vars", "Variáveis"], ["issues", `Problemas (${issues.length})`], ["run", "Execução"]];
+  const blocked = running ? "Já há uma execução em andamento." : errors > 0 ? "Corrija os erros do fluxo antes de executar." : !engine.ready ? `Motor ${engine.label.toLowerCase()}. ${engine.detail}` : "";
+  const runFlow = () => {
+    setTab("run");
+    void useRun.getState().start(useEditor.getState().history.present);
+  };
 
   return (
     <div className="flex h-full flex-col">
@@ -98,6 +108,15 @@ function Shell({ onBack }: { onBack: () => void }) {
               {saveError}
             </span>
           )}
+          {running ? (
+            <Button size="sm" variant="danger" onClick={() => void useRun.getState().cancel()}>
+              Cancelar
+            </Button>
+          ) : (
+            <Button size="sm" variant="primary" disabled={blocked !== ""} title={blocked || "Executar o fluxo como está na tela"} onClick={runFlow}>
+              Executar
+            </Button>
+          )}
           <Button size="sm" disabled={!H.canUndo(history)} onClick={() => useEditor.getState().undo()} title="Desfazer (Ctrl+Z)">
             Desfazer
           </Button>
@@ -116,7 +135,7 @@ function Shell({ onBack }: { onBack: () => void }) {
             <FlowCanvas />
           </div>
         </div>
-        <aside aria-label="Painel lateral" className="flex w-80 shrink-0 flex-col border-l border-line bg-panel">
+        <aside aria-label="Painel lateral" className="flex w-[22rem] shrink-0 flex-col border-l border-line bg-panel">
           <div role="tablist" className="flex border-b border-line">
             {tabs.map(([id, label]) => (
               <button
@@ -125,7 +144,7 @@ function Shell({ onBack }: { onBack: () => void }) {
                 type="button"
                 aria-selected={tab === id}
                 onClick={() => setTab(id)}
-                className={`flex-1 whitespace-nowrap px-2 py-2 text-sm font-medium ${tab === id ? "border-b-2 border-brand" : "text-muted"}`}
+                className={`flex-1 whitespace-nowrap px-1 py-2 text-[13px] font-medium ${tab === id ? "border-b-2 border-brand" : "text-muted"}`}
               >
                 {label}
               </button>
@@ -135,6 +154,7 @@ function Shell({ onBack }: { onBack: () => void }) {
             {tab === "props" && <PropertiesPanel />}
             {tab === "vars" && <VariablesPanel />}
             {tab === "issues" && <IssuesPanel onGoToNode={() => setTab("props")} />}
+            {tab === "run" && <ExecutionPanel />}
           </div>
         </aside>
       </div>

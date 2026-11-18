@@ -2,17 +2,21 @@ import type { z } from "zod";
 import {
   IPC,
   automationIdSchema,
+  cancelExecutionSchema,
   createAutomationSchema,
   loadWorkflowSchema,
   saveWorkflowSchema,
   noInputSchema,
   renameAutomationSchema,
   settingsPatchSchema,
+  startExecutionSchema,
   type AppInfo,
+  type EngineStatus,
   type IpcResult,
 } from "@automation-studio/shared-types";
 import type { AutomationService } from "../services/automations.js";
 import { AppError } from "../services/errors.js";
+import type { ExecutionManager } from "../services/executions.js";
 import type { SettingsService } from "../services/settings.js";
 import type { WorkflowService } from "../services/workflows.js";
 
@@ -28,6 +32,8 @@ export interface IpcDeps {
   automations: AutomationService;
   settings: SettingsService;
   workflows: WorkflowService;
+  engine: { readonly status: EngineStatus };
+  executions: ExecutionManager;
   appInfo: AppInfo;
   /** Só frames cuja URL passa nesta checagem podem chamar o Main. */
   isTrustedUrl: (url: string) => boolean;
@@ -61,6 +67,12 @@ export function registerIpc(ipc: IpcMainLike, deps: IpcDeps): void {
   route(IPC.automationsDelete, automationIdSchema, (i) => automations.remove(i.id));
   route(IPC.workflowsLoad, loadWorkflowSchema, (i) => workflows.load(i.automationId));
   route(IPC.workflowsSave, saveWorkflowSchema, (i) => workflows.save(i.automationId, i.document));
+  route(IPC.engineStatus, noInputSchema, () => deps.engine.status);
+  route(IPC.executionsStart, startExecutionSchema, (i) => deps.executions.start(i.document));
+  route(IPC.executionsCancel, cancelExecutionSchema, (i) => {
+    deps.executions.cancel(i.executionId);
+    return null;
+  });
   route(IPC.settingsGet, noInputSchema, () => settings.get());
   route(IPC.settingsUpdate, settingsPatchSchema, (p) => settings.update(p));
   route(IPC.appInfo, noInputSchema, () => deps.appInfo);

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { IPC, type IpcResult } from "@automation-studio/shared-types";
 import { openDatabase } from "../database/db.js";
 import { createAutomationService } from "../services/automations.js";
+import { createExecutionManager } from "../services/executions.js";
 import { createSettingsService } from "../services/settings.js";
 import { createWorkflowService } from "../services/workflows.js";
 import { registerIpc, type IpcMainLike } from "./register.js";
@@ -24,7 +25,9 @@ beforeEach(() => {
       automations: createAutomationService(db),
       settings: createSettingsService(db),
       workflows: createWorkflowService(db),
-      appInfo: { version: "0.0.0", dataPath: "/x", engineStatus: "unavailable" },
+      appInfo: { version: "0.0.0", dataPath: "/x" },
+      engine: { status: { state: "unavailable", reason: "teste" } },
+      executions: createExecutionManager({ engine: { status: { state: "unavailable", reason: "teste" }, executeAction: async () => ({ kind: "cancelled" }), cancel: () => undefined }, emit: () => undefined }),
       isTrustedUrl: (u) => u.startsWith("file://"),
       onError: (e) => errors.push(e),
     },
@@ -86,7 +89,9 @@ describe("IPC", () => {
         automations: { list: () => { throw new Error("disk /secret/path exploded"); } } as never,
         settings: {} as never,
         workflows: {} as never,
-        appInfo: { version: "0", dataPath: "", engineStatus: "unavailable" },
+        appInfo: { version: "0", dataPath: "" },
+        engine: { status: { state: "starting" } },
+        executions: {} as never,
         isTrustedUrl: () => true,
         onError: (e) => errors.push(e),
       },
@@ -111,9 +116,25 @@ describe("IPC", () => {
     expect(call(IPC.workflowsLoad, [{}])).toMatchObject({ ok: false, error: { code: "VALIDATION" } });
   });
 
+  it("motor e execuções: status, validação de entrada e erros claros", () => {
+    expect(call(IPC.engineStatus)).toEqual({ ok: true, data: { state: "unavailable", reason: "teste" } });
+    expect(call(IPC.executionsStart, [{}])).toMatchObject({ ok: false, error: { code: "VALIDATION" } }); // sem document
+    expect(call(IPC.executionsStart, [{ document: { lixo: 1 } }])).toMatchObject({ ok: false, error: { code: "VALIDATION" } });
+    expect(call(IPC.executionsStart, [{ document: {}, extra: 1 }])).toMatchObject({ ok: false, error: { code: "VALIDATION" } });
+    expect(call(IPC.executionsCancel, [{ executionId: "nope" }])).toMatchObject({ ok: false, error: { code: "NOT_FOUND" } });
+    expect(call(IPC.executionsCancel, [{}])).toMatchObject({ ok: false, error: { code: "VALIDATION" } });
+    // motor indisponível: mensagem com o motivo
+    const a = call(IPC.automationsCreate, [{ name: "X" }]);
+    const id = a.ok ? a.data.id : "";
+    const doc = (call(IPC.workflowsLoad, [{ automationId: id }]) as unknown as { data: { document: unknown } }).data.document;
+    const r = call(IPC.executionsStart, [{ document: doc }]);
+    expect(r).toMatchObject({ ok: false, error: { code: "ENGINE_UNAVAILABLE" } });
+    if (!r.ok) expect(r.error.message).toContain("teste");
+  });
+
   it("settings e info", () => {
     expect(call(IPC.settingsUpdate, [{ theme: "dark" }])).toEqual({ ok: true, data: { theme: "dark" } });
     expect(call(IPC.settingsGet)).toEqual({ ok: true, data: { theme: "dark" } });
-    expect(call(IPC.appInfo)).toMatchObject({ ok: true, data: { engineStatus: "unavailable" } });
+    expect(call(IPC.appInfo)).toMatchObject({ ok: true, data: { version: "0.0.0" } });
   });
 });

@@ -1,0 +1,16 @@
+{
+  "name": "@automation-studio/workflow-interpreter",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "sideEffects": false,
+  "scripts": { "typecheck": "tsc --noEmit -p tsconfig.json" },
+  "dependencies": {
+    "@automation-studio/node-registry": "*",
+    "@automation-studio/shared-types": "*",
+    "@automation-studio/workflow-schema": "*",
+    "@automation-studio/workflow-validator": "*"
+  }
+}

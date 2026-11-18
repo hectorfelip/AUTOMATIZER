@@ -1,0 +1,2 @@
+# Dependências só para GERAR o executável do motor (não vão para o usuário final).
+pyinstaller==6.22.3

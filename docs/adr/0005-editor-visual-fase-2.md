@@ -1,6 +1,6 @@
 # ADR 0005 — Editor visual, documento de workflow e validação (Fase 2)
 
-**Status:** proposta — aguardando aprovação do Hector (itens marcados ⚠️ interpretam ou ampliam os docs-base)
+**Status:** aceita (aprovada pelo Hector; editor validado no Windows)
 
 ## Decisões
 

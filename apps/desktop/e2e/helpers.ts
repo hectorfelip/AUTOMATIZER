@@ -1,4 +1,5 @@
 import { _electron as electron, expect, type ElectronApplication, type Locator, type Page } from "@playwright/test";
+import { execSync } from "node:child_process";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -6,10 +7,10 @@ import { join } from "node:path";
 export const newDataDir = () => mkdtempSync(join(tmpdir(), "automation-studio-e2e-"));
 
 /** Abre o app compilado (`npm run build` antes) com dados isolados em `dataDir`. */
-export async function launch(dataDir: string): Promise<{ app: ElectronApplication; page: Page }> {
+export async function launch(dataDir: string, extraEnv: Record<string, string> = {}): Promise<{ app: ElectronApplication; page: Page }> {
   const app = await electron.launch({
     args: [join(__dirname, "../out/main/index.js"), ...(process.platform === "linux" ? ["--no-sandbox"] : [])],
-    env: { ...process.env, AUTOMATION_STUDIO_USER_DATA: dataDir },
+    env: { ...process.env, AUTOMATION_STUDIO_USER_DATA: dataDir, ...extraEnv },
   });
   const page = await app.firstWindow();
   await page.setViewportSize({ width: 1280, height: 800 });
@@ -80,3 +81,58 @@ export const savedFlow = async (page: Page) =>
     if (!res.ok) throw new Error(res.error.message);
     return res.data;
   });
+
+/** Cria uma automação com o fluxo Início → Esperar(seconds) → Fim já salvo (atalho para testar a execução). */
+export async function seedWaitFlow(page: Page, name: string, seconds: number): Promise<void> {
+  await createAutomation(page, name);
+  await page.evaluate(
+    async ({ name, seconds }) => {
+      const list = await window.api.automations.list();
+      if (!list.ok) throw new Error("list");
+      const id = list.data.find((a) => a.name === name)!.id;
+      const res = await window.api.workflows.save({
+        automationId: id,
+        document: {
+          schemaVersion: 1, id, name,
+          nodes: [
+            { id: "start", type: "trigger.manual", version: 1, config: {} },
+            { id: "w", type: "flow.wait", version: 1, config: { seconds } },
+            { id: "end", type: "flow.end", version: 1, config: { message: "Pronto" } },
+          ],
+          edges: [
+            { id: "e1", source: "start", sourceHandle: "next", target: "w", targetHandle: "input" },
+            { id: "e2", source: "w", sourceHandle: "next", target: "end", targetHandle: "input" },
+          ],
+          variables: {},
+          settings: { timeoutSeconds: 600, errorPolicy: "stop" },
+          visual: { positions: { start: { x: 0, y: 100 }, w: { x: 250, y: 100 }, end: { x: 500, y: 100 } } },
+        },
+      });
+      if (!res.ok) throw new Error(res.error.message);
+    },
+    { name, seconds },
+  );
+}
+
+/** PID do processo do motor Python (filho direto do processo principal do Electron). Só Linux/macOS. */
+export async function enginePid(app: ElectronApplication): Promise<number> {
+  const main = await app.evaluate(() => process.pid);
+  const out = execSync(`pgrep -P ${main} -f automation_engine`).toString().trim().split("\n")[0]!;
+  return Number(out);
+}
+
+export const alive = (pid: number): boolean => {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+/** Espera o motor ficar "ready", consultando a API (independe da tela aberta). */
+export async function waitEngineReady(page: Page, timeout = 15_000): Promise<void> {
+  await expect
+    .poll(async () => page.evaluate(async () => { const r = await window.api.engine.status(); return r.ok ? r.data.state : "erro"; }), { timeout })
+    .toBe("ready");
+}
