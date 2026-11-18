@@ -12,6 +12,7 @@
     "node": ">=22"
   },
   "scripts": {
+    "postinstall": "npm exec -w @automation-studio/desktop -- install-electron",
     "build": "npm run build --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "eslint .",

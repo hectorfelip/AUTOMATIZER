@@ -6,7 +6,7 @@ Pré-requisitos: Node ≥ 22, Python ≥ 3.11 com `pytest`.
 
 | Comando | O que faz |
 |---|---|
-| `npm install` / `npm ci` | Instala dependências (workspaces). O postinstall do Electron baixa o binário |
+| `npm install` / `npm ci` | Instala dependências (workspaces). O `postinstall` da raiz roda `install-electron` (a partir do Electron 45 o pacote não baixa o binário sozinho; sem isso o dev falha com `Electron uninstall`) |
 | `npm run dev` (em `apps/desktop`) | Abre o app em modo desenvolvimento com HMR |
 | `npm run build` | Compila o app (`apps/desktop/out/`) |
 | `npm run lint` | ESLint (TypeScript) |

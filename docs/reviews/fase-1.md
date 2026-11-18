@@ -17,6 +17,9 @@ Instalação, build, lint e testes por comando documentado: ✅ (`docs/CONVENTIO
 ## Conformidade com ARCHITECTURE.md §10 (segurança Electron)
 ✅ contextIsolation · ✅ nodeIntegration off · ✅ preload mínimo/tipado · ✅ argumentos validados (zod strict + testes de entrada inválida) · ✅ sem fs/shell genérico · ✅ navegação/janelas novas bloqueadas, permissões negadas · ✅ CSP · ⚠️ `sandbox: true` está configurado, mas os testes rodam com `--no-sandbox` (Linux/root), então não é verificado por teste.
 
+## Bug encontrado após a revisão (validação no Windows)
+`npm run dev` no Windows falhou com `Electron uninstall`: o Electron 45 não baixa mais o binário no install. Corrigido com `postinstall` na raiz (`install-electron`), testado apagando o binário e reinstalando. Reportado pelo Hector; eu tinha contornado o sintoma no container sem investigar a causa.
+
 ## Bug encontrado e corrigido durante a revisão
 O plugin que relaxa o CSP só no dev server tinha regex que não casava com a tag em várias linhas → `npm run dev` teria o HMR bloqueado. Corrigido e verificado (dev: 0 CSP; produção: CSP presente).
 
