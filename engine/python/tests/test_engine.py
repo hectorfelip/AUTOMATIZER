@@ -193,10 +193,53 @@ def test_test_actions_absent_without_flag():
     env.pop("AUTOMATION_ENGINE_TEST_ACTIONS", None)
     out = subprocess.run([sys.executable, "-m", "automation_engine"], input=b'{"type":"shutdown","requestId":"s","payload":{}}\n', capture_output=True, cwd=ROOT, env=env, timeout=10).stdout
     ready = json.loads(out.splitlines()[0])
-    assert ready["payload"]["actions"] == ["flow.wait"]
+    actions = ready["payload"]["actions"]
+    assert "flow.wait" in actions and "files.move" in actions
+    assert not [a for a in actions if a.startswith("test.")]  # ações de teste não existem em produção
 
 
 def test_selftest_prints_one_json_line():
     out = subprocess.run([sys.executable, "-m", "automation_engine", "--selftest"], capture_output=True, cwd=ROOT, timeout=10)
     data = json.loads(out.stdout)
     assert set(data["imports"]) == {"pywinauto", "pyautogui"} and data["python"]
+
+
+def test_acoes_em_sequencia_na_mesma_execucao_nunca_dao_BUSY(engine):
+    """Regressão: o motor avisava 'concluída' ANTES de liberar a execução; um cliente rápido (o interpretador)
+    mandava a próxima ação na hora e recebia BUSY. Cada nó de um fluxo é uma ação da MESMA execução."""
+    for i in range(300):
+        engine.execute("flow.wait", {"seconds": 0}, "e-seq", f"x{i}")
+        msg = engine.collect_until(TERMINAL)[-1]  # assim que chega o fim, já dispara a próxima
+        assert msg["type"] == "action_completed", f"na volta {i}: {msg['payload']}"
+
+
+def test_execucao_e_liberada_antes_de_avisar_que_terminou():
+    """Determinístico: um cliente ultrarrápido manda a próxima ação DENTRO do envio do 'concluída'.
+    Se a execução ainda estiver ocupada nesse instante, a próxima ação leva BUSY."""
+    import io
+    import time
+
+    from automation_engine.protocol.messages import Command
+    from automation_engine.runtime.engine import Engine
+
+    eng = Engine(io.BytesIO(), io.BytesIO())
+    sent: list[tuple] = []
+    real_send = eng._writer.send
+
+    def next_cmd(rid: str) -> Command:
+        return Command("execute_action", rid, {"executionId": "e", "nodeId": "n", "action": "flow.wait", "config": {"seconds": 0}})
+
+    def spy(type_, request_id="", payload=None):
+        sent.append((type_, request_id, payload))
+        if type_ == "action_completed" and request_id == "r1":
+            eng._start_action(next_cmd("r2"))  # o cliente responde instantaneamente
+        real_send(type_, request_id, payload)
+
+    eng._writer.send = spy
+    eng._start_action(next_cmd("r1"))
+    deadline = time.monotonic() + 3
+    while time.monotonic() < deadline and not any(t == "action_completed" and r == "r2" for t, r, _ in sent):
+        time.sleep(0.01)
+    busy = [p for t, r, p in sent if t == "action_failed" and p["error"]["code"] == "BUSY"]
+    assert not busy, "a execução ainda estava ocupada quando o 'concluída' foi enviado"
+    assert any(t == "action_completed" and r == "r2" for t, r, _ in sent)

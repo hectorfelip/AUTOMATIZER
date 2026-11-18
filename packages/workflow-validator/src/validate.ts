@@ -34,7 +34,7 @@ function validateConfig(node: WorkflowNode, def: NodeDefinition, known: Set<stri
       for (const name of scan.variables) {
         if (!known.has(name)) at(f, "UNKNOWN_VARIABLE", `“${f.label}” usa a variável “${name}”, que não está definida.`);
       }
-      if (f.kind === "select") at(f, "INVALID_FIELD", `“${f.label}” não aceita variáveis.`);
+      if (f.kind === "select" || f.literal) at(f, "INVALID_FIELD", `“${f.label}” não aceita variáveis; informe um valor fixo.`);
       continue; // valor só é conhecido na execução
     }
 

@@ -249,3 +249,197 @@ describe("cancelamento e timeout", () => {
     expect((await result).status).toBe("cancelled");
   });
 });
+
+// ---------- nós de controle (executados pelo interpretador, nunca pelo motor) ----------
+describe("Definir variável", () => {
+  it("o valor definido é visto pelos nós seguintes", async () => {
+    doc = createEmptyWorkflow("f", "V");
+    node("sv", "data.set_variable", { name: "pasta", value: "C:\\Backup" });
+    node("l", "files.list", { path: "{{variables.pasta}}" });
+    node("end", "flow.end");
+    edge("start", "next", "sv");
+    edge("sv", "next", "l");
+    edge("l", "success", "end");
+    const { calls, events, result } = run(ok);
+    expect((await result).status).toBe("completed");
+    expect(calls).toHaveLength(1); // só o listar foi ao motor
+    expect(calls[0]!.config["path"]).toBe("C:\\Backup");
+    expect(events.find((e) => e.type === "node_completed" && e.nodeId === "sv")).toMatchObject({ message: "Variável “pasta” = C:\\Backup." });
+  });
+
+  it("respeita o tipo declarado: texto numérico vira número", async () => {
+    doc = createEmptyWorkflow("f", "V");
+    doc.variables = { n: { type: "number", value: 0 } };
+    node("sv", "data.set_variable", { name: "n", value: "5" });
+    node("w2", "flow.wait", { seconds: "{{variables.n}}" });
+    edge("start", "next", "sv");
+    edge("sv", "next", "w2");
+    const { calls, result } = run(ok);
+    await result;
+    expect(calls[0]!.config["seconds"]).toBe(5);
+  });
+
+  it("referência pura copia o valor com o tipo original", async () => {
+    doc = createEmptyWorkflow("f", "V");
+    doc.variables = { origem: { type: "number", value: 7 }, destino: { type: "number", value: 0 } };
+    node("sv", "data.set_variable", { name: "destino", value: "{{variables.origem}}" });
+    node("w2", "flow.wait", { seconds: "{{variables.destino}}" });
+    edge("start", "next", "sv");
+    edge("sv", "next", "w2");
+    const { calls, result } = run(ok);
+    await result;
+    expect(calls[0]!.config["seconds"]).toBe(7);
+  });
+
+  it("valor incompatível com o tipo declarado falha no nó, com mensagem clara", async () => {
+    doc = createEmptyWorkflow("f", "V");
+    doc.variables = { n: { type: "number", value: 0 } };
+    node("sv", "data.set_variable", { name: "n", value: "abc" });
+    edge("start", "next", "sv");
+    const { calls, result } = run(ok);
+    const r = await result;
+    expect(r).toMatchObject({ status: "failed", error: { code: "INVALID_CONFIG", message: expect.stringContaining("não é numérico") } });
+    expect(calls).toHaveLength(0);
+  });
+
+  it("não altera o documento (a variável é do contexto da execução)", async () => {
+    doc = createEmptyWorkflow("f", "V");
+    doc.variables = { n: { type: "number", value: 1 } };
+    node("sv", "data.set_variable", { name: "n", value: "9" });
+    edge("start", "next", "sv");
+    const before = JSON.stringify(doc);
+    await run(ok).result;
+    expect(JSON.stringify(doc)).toBe(before);
+  });
+});
+
+describe("Se / Senão", () => {
+  const branches = (left: string, operator: string, right: string) => {
+    doc = createEmptyWorkflow("f", "C");
+    node("c", "flow.condition", { left, operator, right });
+    node("yes", "flow.end", { message: "sim" });
+    node("no", "flow.end", { message: "nao" });
+    edge("start", "next", "c");
+    edge("c", "true", "yes");
+    edge("c", "false", "no");
+    return run(ok);
+  };
+  const outcome = async (r: ReturnType<typeof branches>) => {
+    await r.result;
+    return (r.events.at(-1) as { message?: string }).message;
+  };
+
+  it("segue o caminho verdadeiro ou falso sem consultar o motor", async () => {
+    const t = branches("5", "equals", "5");
+    expect(await outcome(t)).toBe("sim");
+    expect(t.calls).toHaveLength(0);
+    expect(await outcome(branches("5", "equals", "6"))).toBe("nao");
+  });
+  it("compara números como números ('10' maior que '9')", async () => {
+    expect(await outcome(branches("10", "greater", "9"))).toBe("sim");
+  });
+  it("usa variáveis", async () => {
+    doc = createEmptyWorkflow("f", "C");
+    doc.variables = { ext: { type: "string", value: "pdf" } };
+    node("c", "flow.condition", { left: "{{variables.ext}}", operator: "equals", right: "pdf" });
+    node("yes", "flow.end", { message: "sim" });
+    edge("start", "next", "c");
+    edge("c", "true", "yes");
+    expect(await outcome(run(ok))).toBe("sim");
+  });
+  it("comparação inválida falha o nó em vez de adivinhar", async () => {
+    const r = branches("banana", "greater", "10");
+    expect(await r.result).toMatchObject({ status: "failed", error: { code: "INVALID_CONFIG" } });
+  });
+  it("o evento explica a decisão", async () => {
+    const r = branches("a.pdf", "contains", ".pdf");
+    await r.result;
+    expect(r.events.find((e) => e.type === "node_completed" && e.nodeId === "c")).toMatchObject({ port: "true", message: "“a.pdf” contém “.pdf”: verdadeiro." });
+  });
+});
+
+describe("Repetir N vezes", () => {
+  /** start → r ─body→ w ─→ r (volta);  r ─done→ end */
+  const loop = (times: ConfigValue, wired = true) => {
+    doc = createEmptyWorkflow("f", "R");
+    node("r", "flow.repeat", { times });
+    node("w", "flow.wait", { seconds: 0 });
+    node("end", "flow.end", { message: "fim" });
+    edge("start", "next", "r");
+    edge("r", "body", "w");
+    if (wired) edge("w", "next", "r");
+    edge("r", "done", "end");
+  };
+
+  it("executa o corpo N vezes e depois segue por 'Depois'", async () => {
+    loop(3);
+    const { calls, events, result } = run(ok);
+    expect((await result).status).toBe("completed");
+    expect(calls).toHaveLength(3);
+    expect(events.filter((e) => e.type === "node_started" && e.nodeId === "r")).toHaveLength(4); // 3 voltas + a saída
+    expect((events.at(-1) as { message?: string }).message).toBe("fim");
+    const msgs = events.filter((e) => e.type === "node_completed" && e.nodeId === "r").map((e) => (e as { message?: string }).message);
+    expect(msgs).toEqual(["Repetição 1 de 3.", "Repetição 2 de 3.", "Repetição 3 de 3.", "3 repetição(ões) concluída(s)."]);
+  });
+
+  it("o número de vezes pode vir de uma variável", async () => {
+    loop("{{variables.n}}");
+    doc.variables = { n: { type: "number", value: 2 } };
+    const { calls, result } = run(ok);
+    await result;
+    expect(calls).toHaveLength(2);
+  });
+
+  it.each([[0], [1.5], [100_001]])("valor inválido em tempo de execução (%s) falha o nó", async (n) => {
+    loop("{{variables.n}}");
+    doc.variables = { n: { type: "number", value: n } };
+    expect(await run(ok).result).toMatchObject({ status: "failed", error: { code: "INVALID_CONFIG" } });
+  });
+
+  it("laços aninhados: o contador interno zera a cada passagem (2 × 3 = 6)", async () => {
+    doc = createEmptyWorkflow("f", "R");
+    node("outer", "flow.repeat", { times: 2 });
+    node("inner", "flow.repeat", { times: 3 });
+    node("w", "flow.wait", { seconds: 0 });
+    node("end", "flow.end");
+    edge("start", "next", "outer");
+    edge("outer", "body", "inner");
+    edge("inner", "body", "w");
+    edge("w", "next", "inner");
+    edge("inner", "done", "outer"); // terminou o interno: volta ao externo
+    edge("outer", "done", "end");
+    const { calls, result } = run(ok);
+    expect((await result).status).toBe("completed");
+    expect(calls).toHaveLength(6);
+  });
+
+  it("sem ligar o corpo de volta, o fluxo termina após uma passagem (comportamento documentado)", async () => {
+    loop(5, false);
+    const { calls, result } = run(ok);
+    expect((await result).status).toBe("completed");
+    expect(calls).toHaveLength(1);
+  });
+
+  it("milhares de voltas não estouram o limite de passos", async () => {
+    loop(5000);
+    const { calls, result } = run(ok);
+    expect((await result).status).toBe("completed");
+    expect(calls).toHaveLength(5000);
+  });
+
+  it("cancelar no meio do laço interrompe as repetições", async () => {
+    loop(1000);
+    const ctl = new AbortController();
+    let n = 0;
+    const { calls, result } = run(() => (++n === 3 && ctl.abort(), { kind: "completed", outputs: {} }), { signal: ctl.signal });
+    expect((await result).status).toBe("cancelled");
+    expect(calls).toHaveLength(3);
+  });
+
+  it("falha dentro do laço interrompe a execução e aponta o nó", async () => {
+    loop(5);
+    let n = 0;
+    const r = await run(() => (++n === 2 ? { kind: "failed", error: { code: "X", message: "quebrou" } } : { kind: "completed", outputs: {} })).result;
+    expect(r).toMatchObject({ status: "failed", error: { message: "Esperar: quebrou" } });
+  });
+});

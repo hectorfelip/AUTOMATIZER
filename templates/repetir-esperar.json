@@ -1,0 +1,105 @@
+{
+  "meta": {
+    "id": "repetir-esperar",
+    "name": "Repetir uma ação N vezes",
+    "description": "Espera 1 segundo, 3 vezes. Mostra como o nó “Repetir” funciona: o fim do corpo volta à entrada dele.",
+    "windowsOnly": false
+  },
+  "workflow": {
+    "schemaVersion": 1,
+    "id": "template",
+    "name": "template",
+    "nodes": [
+      {
+        "id": "start",
+        "type": "trigger.manual",
+        "version": 1,
+        "config": {}
+      },
+      {
+        "id": "repetir",
+        "type": "flow.repeat",
+        "version": 1,
+        "config": {
+          "times": "{{variables.voltas}}"
+        }
+      },
+      {
+        "id": "esperar",
+        "type": "flow.wait",
+        "version": 1,
+        "config": {
+          "seconds": 1
+        }
+      },
+      {
+        "id": "fim",
+        "type": "flow.end",
+        "version": 1,
+        "config": {
+          "message": "Repetições concluídas"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e:start.next>repetir",
+        "source": "start",
+        "sourceHandle": "next",
+        "target": "repetir",
+        "targetHandle": "input"
+      },
+      {
+        "id": "e:repetir.body>esperar",
+        "source": "repetir",
+        "sourceHandle": "body",
+        "target": "esperar",
+        "targetHandle": "input"
+      },
+      {
+        "id": "e:esperar.next>repetir",
+        "source": "esperar",
+        "sourceHandle": "next",
+        "target": "repetir",
+        "targetHandle": "input"
+      },
+      {
+        "id": "e:repetir.done>fim",
+        "source": "repetir",
+        "sourceHandle": "done",
+        "target": "fim",
+        "targetHandle": "input"
+      }
+    ],
+    "variables": {
+      "voltas": {
+        "type": "number",
+        "value": 3
+      }
+    },
+    "settings": {
+      "timeoutSeconds": 600,
+      "errorPolicy": "stop"
+    },
+    "visual": {
+      "positions": {
+        "start": {
+          "x": 0,
+          "y": 120
+        },
+        "repetir": {
+          "x": 230,
+          "y": 100
+        },
+        "esperar": {
+          "x": 500,
+          "y": 10
+        },
+        "fim": {
+          "x": 500,
+          "y": 220
+        }
+      }
+    }
+  }
+}

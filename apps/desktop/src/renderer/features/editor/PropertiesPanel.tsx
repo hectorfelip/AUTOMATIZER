@@ -1,11 +1,14 @@
 import { getNodeDefinition } from "@automation-studio/node-registry";
+import { useState } from "react";
 import { Button } from "../../components/ui/Button";
+import { Dialog } from "../../components/ui/Dialog";
 import { currentDoc, issuesOf, useEditor } from "../../stores/editor";
 import { duplicateNodes, removeNodes, updateNodeConfig } from "./docOps";
 import { FieldInput } from "./FieldInput";
 
 export function PropertiesPanel() {
   const doc = useEditor(currentDoc)!;
+  const [confirmOverwrite, setConfirmOverwrite] = useState<string | null>(null); // id do nó aguardando confirmação
   const selected = useEditor((s) => s.selectedNodes).filter((id) => doc.nodes.some((n) => n.id === id));
   const issues = issuesOf(doc);
 
@@ -77,10 +80,32 @@ export function PropertiesPanel() {
           field={f}
           value={node.config[f.key]}
           error={mine.find((i) => i.field === f.key)?.message.replace(`${def.label}: `, "")}
-          onChange={(v) => useEditor.getState().commit(updateNodeConfig(doc, node.id, f.key, v), `cfg:${node.id}:${f.key}`)}
+          onChange={(v) => {
+            // Sobrescrever apaga o que já existe no destino: ligar exige confirmação (desligar, não).
+            if (f.key === "overwrite" && v === true && node.config[f.key] !== true) setConfirmOverwrite(node.id);
+            else useEditor.getState().commit(updateNodeConfig(doc, node.id, f.key, v), `cfg:${node.id}:${f.key}`);
+          }}
         />
       ))}
       {actions}
+      <Dialog open={confirmOverwrite === node.id} title="Sobrescrever arquivos?" onClose={() => setConfirmOverwrite(null)}>
+        <p>
+          Com esta opção, arquivos que <strong>já existem no destino serão substituídos sem perguntar</strong>. Isso não pode ser desfeito
+          pelo Automation Studio.
+        </p>
+        <div className="flex justify-end gap-2">
+          <Button onClick={() => setConfirmOverwrite(null)}>Cancelar</Button>
+          <Button
+            variant="danger"
+            onClick={() => {
+              useEditor.getState().commit(updateNodeConfig(doc, node.id, "overwrite", true), `cfg:${node.id}:overwrite`);
+              setConfirmOverwrite(null);
+            }}
+          >
+            Ativar sobrescrita
+          </Button>
+        </div>
+      </Dialog>
     </div>
   );
 }

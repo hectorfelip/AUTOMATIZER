@@ -3,6 +3,7 @@ import { IPC, type IpcResult } from "@automation-studio/shared-types";
 import { openDatabase } from "../database/db.js";
 import { createAutomationService } from "../services/automations.js";
 import { createExecutionManager } from "../services/executions.js";
+import { createTemplatesService } from "../services/templates.js";
 import { createSettingsService } from "../services/settings.js";
 import { createWorkflowService } from "../services/workflows.js";
 import { registerIpc, type IpcMainLike } from "./register.js";
@@ -19,12 +20,15 @@ beforeEach(() => {
   handlers = new Map();
   errors = [];
   const db = openDatabase(":memory:");
+  const automations = createAutomationService(db);
+  const workflows = createWorkflowService(db);
   registerIpc(
     { handle: (c, l) => void handlers.set(c, l) },
     {
-      automations: createAutomationService(db),
+      automations,
+      templates: createTemplatesService({ automations, workflows }),
       settings: createSettingsService(db),
-      workflows: createWorkflowService(db),
+      workflows,
       appInfo: { version: "0.0.0", dataPath: "/x" },
       engine: { status: { state: "unavailable", reason: "teste" } },
       executions: createExecutionManager({ engine: { status: { state: "unavailable", reason: "teste" }, executeAction: async () => ({ kind: "cancelled" }), cancel: () => undefined }, emit: () => undefined }),
@@ -92,6 +96,7 @@ describe("IPC", () => {
         appInfo: { version: "0", dataPath: "" },
         engine: { status: { state: "starting" } },
         executions: {} as never,
+        templates: {} as never,
         isTrustedUrl: () => true,
         onError: (e) => errors.push(e),
       },
@@ -130,6 +135,22 @@ describe("IPC", () => {
     const r = call(IPC.executionsStart, [{ document: doc }]);
     expect(r).toMatchObject({ ok: false, error: { code: "ENGINE_UNAVAILABLE" } });
     if (!r.ok) expect(r.error.message).toContain("teste");
+  });
+
+  it("exemplos: lista e cria uma automação já com o fluxo salvo", () => {
+    const list = call(IPC.templatesList) as unknown as { ok: true; data: { id: string; name: string }[] };
+    expect(list.ok && list.data.length).toBeGreaterThanOrEqual(4);
+    const id = list.data.find((t) => t.id === "organizar-pdfs")!.id;
+    const created = call(IPC.templatesCreate, [{ templateId: id, name: "Meus PDFs" }]);
+    expect(created).toMatchObject({ ok: true, data: { name: "Meus PDFs", status: "active" } });
+    const automationId = created.ok ? created.data.id : "";
+    const loaded = call(IPC.workflowsLoad, [{ automationId }]) as unknown as { data: { version: number; document: { id: string; name: string; nodes: unknown[] } } };
+    expect(loaded.data.version).toBe(1);
+    expect(loaded.data.document).toMatchObject({ id: automationId, name: "Meus PDFs" });
+    expect(loaded.data.document.nodes.length).toBeGreaterThan(2);
+    expect(call(IPC.templatesCreate, [{ templateId: "nao-existe" }])).toMatchObject({ ok: false, error: { code: "NOT_FOUND" } });
+    expect(call(IPC.templatesCreate, [{ templateId: id, name: "" }])).toMatchObject({ ok: false, error: { code: "VALIDATION" } });
+    expect(call(IPC.templatesCreate, [{}])).toMatchObject({ ok: false, error: { code: "VALIDATION" } });
   });
 
   it("settings e info", () => {

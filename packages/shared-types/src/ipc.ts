@@ -26,6 +26,14 @@ export interface AppSettings {
   theme: Theme;
 }
 
+export interface TemplateInfo {
+  id: string;
+  name: string;
+  description: string;
+  /** Usa ações que só existem no Windows. */
+  windowsOnly: boolean;
+}
+
 export interface WorkflowLoadResult {
   document: WorkflowDocument;
   /** Versão salva carregada; 0 = automação nova, ainda sem nenhum salvamento. */
@@ -63,6 +71,10 @@ export interface SaveWorkflowInput {
   automationId: string;
   document: WorkflowDocument;
 }
+export interface CreateFromTemplateInput {
+  templateId: string;
+  name?: string;
+}
 export interface StartExecutionInput {
   document: WorkflowDocument;
 }
@@ -92,6 +104,8 @@ export const IPC = {
   engineStatus: "engine:status",
   executionsStart: "executions:start",
   executionsCancel: "executions:cancel",
+  templatesList: "templates:list",
+  templatesCreate: "templates:create",
   settingsGet: "settings:get",
   settingsUpdate: "settings:update",
   appInfo: "app:info",
@@ -116,6 +130,11 @@ export interface DesktopApi {
   workflows: {
     load(input: LoadWorkflowInput): Promise<IpcResult<WorkflowLoadResult>>;
     save(input: SaveWorkflowInput): Promise<IpcResult<WorkflowSaveResult>>;
+  };
+  templates: {
+    list(): Promise<IpcResult<TemplateInfo[]>>;
+    /** Cria uma automação nova a partir de um exemplo pronto. */
+    createAutomation(input: CreateFromTemplateInput): Promise<IpcResult<Automation>>;
   };
   engine: {
     status(): Promise<IpcResult<EngineStatus>>;

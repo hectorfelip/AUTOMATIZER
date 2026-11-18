@@ -8,6 +8,8 @@ interface State {
   loadError: string | null;
   load(): Promise<void>;
   create(name: string, description: string): Promise<void>;
+  /** Cria a automação a partir de um exemplo pronto e devolve a nova automação. */
+  createFromTemplate(templateId: string, name?: string): Promise<Automation>;
   rename(id: string, name: string): Promise<void>;
   archive(id: string): Promise<void>;
   restore(id: string): Promise<void>;
@@ -32,6 +34,11 @@ export const useAutomations = create<State>((set, get) => {
       }
     },
     create: (name, description) => mutate((a) => a.automations.create({ name, description })),
+    async createFromTemplate(templateId, name) {
+      const created = await unwrap((a) => a.templates.createAutomation({ templateId, ...(name ? { name } : {}) }));
+      await get().load();
+      return created;
+    },
     rename: (id, name) => mutate((a) => a.automations.rename({ id, name })),
     archive: (id) => mutate((a) => a.automations.archive({ id })),
     restore: (id) => mutate((a) => a.automations.restore({ id })),

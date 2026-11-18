@@ -4,6 +4,7 @@ import {
   automationIdSchema,
   cancelExecutionSchema,
   createAutomationSchema,
+  createFromTemplateSchema,
   loadWorkflowSchema,
   saveWorkflowSchema,
   noInputSchema,
@@ -17,6 +18,7 @@ import {
 import type { AutomationService } from "../services/automations.js";
 import { AppError } from "../services/errors.js";
 import type { ExecutionManager } from "../services/executions.js";
+import type { TemplatesService } from "../services/templates.js";
 import type { SettingsService } from "../services/settings.js";
 import type { WorkflowService } from "../services/workflows.js";
 
@@ -34,6 +36,7 @@ export interface IpcDeps {
   workflows: WorkflowService;
   engine: { readonly status: EngineStatus };
   executions: ExecutionManager;
+  templates: TemplatesService;
   appInfo: AppInfo;
   /** Só frames cuja URL passa nesta checagem podem chamar o Main. */
   isTrustedUrl: (url: string) => boolean;
@@ -67,6 +70,8 @@ export function registerIpc(ipc: IpcMainLike, deps: IpcDeps): void {
   route(IPC.automationsDelete, automationIdSchema, (i) => automations.remove(i.id));
   route(IPC.workflowsLoad, loadWorkflowSchema, (i) => workflows.load(i.automationId));
   route(IPC.workflowsSave, saveWorkflowSchema, (i) => workflows.save(i.automationId, i.document));
+  route(IPC.templatesList, noInputSchema, () => deps.templates.list());
+  route(IPC.templatesCreate, createFromTemplateSchema, (i) => deps.templates.createAutomation(i.templateId, i.name));
   route(IPC.engineStatus, noInputSchema, () => deps.engine.status);
   route(IPC.executionsStart, startExecutionSchema, (i) => deps.executions.start(i.document));
   route(IPC.executionsCancel, cancelExecutionSchema, (i) => {

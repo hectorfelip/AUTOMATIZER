@@ -108,6 +108,10 @@ describe("parâmetros", () => {
     const fields = validateWorkflow(doc).filter((i) => i.code === "INVALID_FIELD").map((i) => i.field);
     expect(fields).toEqual(expect.arrayContaining(["operator", "recursive"]));
   });
+  it("nome de variável precisa ser fixo: {{...}} é recusado (o padrão não seria checado)", () => {
+    node("sv", "data.set_variable", { name: "{{variables.x}}", value: "1" });
+    expect(find("INVALID_FIELD")?.message).toContain("não aceita variáveis");
+  });
   it("padrão do nome da variável", () => {
     node("sv", "data.set_variable", { name: "1 inválido", value: "x" });
     expect(find("INVALID_FIELD")?.message).toContain("Use letras, números e _");

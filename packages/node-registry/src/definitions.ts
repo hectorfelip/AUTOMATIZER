@@ -97,7 +97,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     version: 1,
     label: "Repetir N vezes",
     category: "control",
-    description: "Executa o caminho 'Corpo' N vezes e depois segue por 'Depois'.",
+    description: "Executa o caminho “Corpo” N vezes. Ligue o fim do corpo de volta à entrada deste nó para repetir; ao terminar as repetições, o fluxo segue por “Depois”.",
     inputs: IN,
     outputs: [
       { id: "body", label: "Corpo" },
@@ -120,10 +120,11 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
         label: "Nome da variável",
         kind: "text",
         required: true,
+        literal: true,
         pattern: "^[A-Za-z_][A-Za-z0-9_]{0,63}$",
         patternMessage: "Use letras, números e _, começando por letra ou _ (máx. 64).",
       },
-      { key: "value", label: "Valor", kind: "text" },
+      { key: "value", label: "Valor", kind: "text", help: "Aceita {{variables.outra}}. Se a variável foi declarada com um tipo (número, lógico), o valor é convertido." },
     ],
   },
   // ---- Arquivos e pastas ----
@@ -137,7 +138,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     outputs: OK_ERR,
     fields: [
       path("path", "Pasta", { placeholder: "{{variables.pastaDownloads}}" }),
-      { key: "pattern", label: "Filtro", kind: "text", default: "*", placeholder: "*.pdf" },
+      { key: "pattern", label: "Filtro", kind: "text", default: "*", placeholder: "*.pdf", help: "Use * e ? como curingas." },
       { key: "recursive", label: "Incluir subpastas", kind: "boolean", default: false },
     ],
   },
@@ -173,9 +174,9 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     inputs: IN,
     outputs: OK_ERR,
     fields: [
-      path("source", "Origem"),
-      path("destination", "Destino"),
-      { key: "overwrite", label: "Sobrescrever se existir", kind: "boolean", default: false },
+      path("source", "Origem", { help: "Aceita * e ? no nome do arquivo, ex.: C:\\Downloads\\*.pdf copia todos os PDFs." }),
+      path("destination", "Destino", { help: "Pasta de destino (ou o novo nome, se a origem for um único arquivo)." }),
+      { key: "overwrite", label: "Sobrescrever se existir", kind: "boolean", default: false, help: "Cuidado: substitui arquivos que já existem no destino." },
     ],
   },
   {
@@ -187,9 +188,9 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     inputs: IN,
     outputs: OK_ERR,
     fields: [
-      path("source", "Origem"),
-      path("destination", "Destino"),
-      { key: "overwrite", label: "Sobrescrever se existir", kind: "boolean", default: false },
+      path("source", "Origem", { help: "Aceita * e ? no nome do arquivo, ex.: C:\\Downloads\\*.pdf move todos os PDFs." }),
+      path("destination", "Destino", { help: "Pasta de destino (ou o novo nome, se a origem for um único arquivo)." }),
+      { key: "overwrite", label: "Sobrescrever se existir", kind: "boolean", default: false, help: "Cuidado: substitui arquivos que já existem no destino." },
     ],
   },
   {
@@ -200,7 +201,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     description: "Renomeia um arquivo ou pasta.",
     inputs: IN,
     outputs: OK_ERR,
-    fields: [path("path", "Caminho atual"), { key: "newName", label: "Novo nome", kind: "text", required: true }],
+    fields: [path("path", "Caminho atual"), { key: "newName", label: "Novo nome", kind: "text", required: true, help: "Só o nome, sem pasta (ex.: relatorio.pdf)." }],
   },
   // ---- Janelas e aplicativos ----
   {
@@ -238,7 +239,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     description: "Digita um texto na janela ativa.",
     inputs: IN,
     outputs: OK_ERR,
-    fields: [{ key: "text", label: "Texto", kind: "text", required: true }],
+    fields: [{ key: "text", label: "Texto", kind: "text", required: true, help: "Digita na janela que estiver em foco. Use “Ativar janela” antes." }],
   },
   {
     type: "input.hotkey",
@@ -248,7 +249,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     description: "Pressiona uma combinação de teclas.",
     inputs: IN,
     outputs: OK_ERR,
-    fields: [{ key: "keys", label: "Teclas", kind: "text", required: true, placeholder: "ctrl+s" }],
+    fields: [{ key: "keys", label: "Teclas", kind: "text", required: true, placeholder: "ctrl+s", help: "Separe com +. Ex.: ctrl+s, alt+f4, win+r, ctrl+shift+esc." }],
   },
   {
     type: "input.click",
@@ -259,7 +260,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     inputs: IN,
     outputs: OK_ERR,
     fields: [
-      { key: "x", label: "X", kind: "number", required: true, min: 0, max: 100_000 },
+      { key: "x", label: "X", kind: "number", required: true, min: 0, max: 100_000, help: "Em pixels, a partir do canto superior esquerdo da tela. Depende da resolução e da escala do monitor." },
       { key: "y", label: "Y", kind: "number", required: true, min: 0, max: 100_000 },
       {
         key: "button",

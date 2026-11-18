@@ -24,6 +24,10 @@ const api: DesktopApi = {
     load: (input) => ipcRenderer.invoke(IPC.workflowsLoad, input),
     save: (input) => ipcRenderer.invoke(IPC.workflowsSave, input),
   },
+  templates: {
+    list: () => ipcRenderer.invoke(IPC.templatesList),
+    createAutomation: (input) => ipcRenderer.invoke(IPC.templatesCreate, input),
+  },
   engine: {
     status: () => ipcRenderer.invoke(IPC.engineStatus),
     onStatusChange: subscribe(PUSH.engineStatus),

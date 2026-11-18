@@ -21,6 +21,7 @@ Pré-requisitos: Node ≥ 22 e **Python ≥ 3.11 com `pytest`** (necessário tam
 | Comando / variável | O que faz |
 |---|---|
 | `python scripts/build-engine.py` | Gera o executável do motor (PyInstaller) em `engine/python/dist/` — ver `docs/engine-packaging.md` |
+| `python scripts/verify-actions.py [--title "Bloco de Notas"]` | Exercita as ações de verdade (arquivos automático; no Windows, Bloco de Notas com confirmação visual) |
 | `python scripts/verify-engine.py <exe> [--clean-path]` | Verifica um executável do motor (protocolo, cancelamento, imports) |
 | `AUTOMATION_STUDIO_PYTHON` | Python a usar em desenvolvimento (padrão: `py -3` no Windows, `python3` nos demais) |
 | `AUTOMATION_STUDIO_ENGINE` | Caminho de um executável do motor (vence tudo; usado para validar o empacotamento) |

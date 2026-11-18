@@ -7,6 +7,7 @@ import { EngineClient } from "./services/engine/client.js";
 import { resolveEngineLaunch } from "./services/engine/launch.js";
 import { createExecutionManager } from "./services/executions.js";
 import { createAutomationService } from "./services/automations.js";
+import { createTemplatesService } from "./services/templates.js";
 import { createSettingsService } from "./services/settings.js";
 import { createWorkflowService } from "./services/workflows.js";
 import { createMainWindow, isTrustedUrl } from "./windows/mainWindow.js";
@@ -39,12 +40,15 @@ if (!app.requestSingleInstanceLock()) {
     engine.on("status", (status) => broadcast(PUSH.engineStatus, status));
     const executions = createExecutionManager({ engine, emit: (event) => broadcast(PUSH.executionEvent, event) });
 
+    const automations = createAutomationService(db);
+    const workflows = createWorkflowService(db);
     registerIpc(ipcMain, {
+      templates: createTemplatesService({ automations, workflows }),
       engine,
       executions,
-      automations: createAutomationService(db),
+      automations,
       settings: createSettingsService(db),
-      workflows: createWorkflowService(db),
+      workflows,
       appInfo: { version: app.getVersion(), dataPath: app.getPath("userData") },
       isTrustedUrl,
       onError: (err) => console.error("[ipc]", err),

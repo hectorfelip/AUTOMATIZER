@@ -107,6 +107,12 @@ class Engine:
             target=self._run_action, args=(cmd.request_id, ids, name, config, token), daemon=True, name=f"action-{node_id}"
         ).start()
 
+    def _release(self, execution_id: str, token: threading.Event) -> None:
+        """Libera a execução, mas só se o token ainda for o desta ação (nunca o da ação seguinte)."""
+        with self._lock:
+            if self._tokens.get(execution_id) is token:
+                del self._tokens[execution_id]
+
     def _run_action(self, request_id: str, ids: dict[str, str], name: str, config: dict[str, Any], token: threading.Event) -> None:
         send = self._writer.send
 
@@ -118,8 +124,14 @@ class Engine:
                 payload["message"] = message
             send("action_progress", request_id, payload)
 
+        def finish(type_: str, payload: dict[str, Any]) -> None:
+            # A execução é liberada ANTES de avisar o fim: o cliente (interpretador) manda o próximo nó
+            # da mesma execução no mesmo instante em que recebe esta mensagem.
+            self._release(ids["executionId"], token)
+            send(type_, request_id, payload)
+
         def fail(code: str, message: str, details: Optional[dict[str, Any]] = None) -> None:
-            send("action_failed", request_id, {**ids, "error": {"code": code, "message": message, "details": details or {}}})
+            finish("action_failed", {**ids, "error": {"code": code, "message": message, "details": details or {}}})
 
         try:
             send("action_started", request_id, ids)
@@ -137,17 +149,16 @@ class Engine:
             except (TypeError, ValueError):
                 fail("OUTPUT_NOT_SERIALIZABLE", "A ação devolveu um resultado que não pode ser enviado.")
                 return
-            send("action_completed", request_id, payload)
+            finish("action_completed", payload)
         except ActionCancelled:
-            send("action_cancelled", request_id, ids)
+            finish("action_cancelled", ids)
         except ActionError as e:
             fail(e.code, e.message, e.details)
         except Exception as e:  # noqa: BLE001 - qualquer bug de ação vira erro, nunca derruba o motor
             traceback.print_exc(file=sys.stderr)
             fail("INTERNAL_ERROR", "Erro interno ao executar a ação.", {"type": type(e).__name__, "trace": traceback.format_exc()[-4000:]})
         finally:
-            with self._lock:
-                self._tokens.pop(ids["executionId"], None)
+            self._release(ids["executionId"], token)  # rede de segurança (ex.: falha ao enviar); idempotente
 
     def _cancel_all(self) -> None:
         with self._lock:

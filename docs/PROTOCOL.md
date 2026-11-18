@@ -34,7 +34,7 @@ Python → Node: `{"type", "requestId", "eventId", "payload"}` — `requestId` �
 | `protocol_error` | `{message}` |
 | `bye` | `{}` |
 
-Códigos de erro de ação: `ACTION_NOT_IMPLEMENTED`, `INVALID_CONFIG`, `BUSY`, `OUTPUT_NOT_SERIALIZABLE`, `INTERNAL_ERROR` e os definidos por cada ação.
+Códigos de erro de ação: `ACTION_NOT_IMPLEMENTED`, `INVALID_CONFIG`, `BUSY`, `OUTPUT_NOT_SERIALIZABLE`, `INTERNAL_ERROR` e os definidos por cada ação (ver `docs/ACTIONS.md`). Um resultado maior que 1 MiB vira `protocol_error`: as ações truncam listas (`truncated: true`).
 
 ## Cancelamento e timeout
 Cooperativo: `cancel` sinaliza o token da execução; ações longas consultam `ctx.cancelled` / usam `ctx.sleep()`. O Main aplica **timeout** por ação: ao estourar, envia `cancel`; se a ação não terminar em 3 s, **mata o processo** do motor (ação não cooperativa) e o reinicia — "quando tecnicamente possível" (`ARCHITECTURE.md §7.4`).

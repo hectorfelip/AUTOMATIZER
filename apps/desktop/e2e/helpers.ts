@@ -136,3 +136,30 @@ export async function waitEngineReady(page: Page, timeout = 15_000): Promise<voi
     .poll(async () => page.evaluate(async () => { const r = await window.api.engine.status(); return r.ok ? r.data.state : "erro"; }), { timeout })
     .toBe("ready");
 }
+
+type Cfg = Record<string, string | number | boolean | null>;
+export const nodeSpec = (id: string, type: string, config: Cfg = {}) => ({ id, type, version: 1, config });
+export const edgeSpec = (source: string, sourceHandle: string, target: string) => ({ id: `e:${source}.${sourceHandle}>${target}`, source, sourceHandle, target, targetHandle: "input" });
+
+/** Cria uma automação com um fluxo qualquer já salvo. Posições são geradas em grade. */
+export async function seedFlow(
+  page: Page,
+  name: string,
+  flow: { nodes: ReturnType<typeof nodeSpec>[]; edges: ReturnType<typeof edgeSpec>[]; variables?: Record<string, { type: "string" | "number" | "boolean"; value: string | number | boolean }> },
+): Promise<void> {
+  await createAutomation(page, name);
+  await page.evaluate(
+    async ({ name, flow }) => {
+      const list = await window.api.automations.list();
+      if (!list.ok) throw new Error("list");
+      const id = list.data.find((a) => a.name === name)!.id;
+      const positions = Object.fromEntries(flow.nodes.map((n, i) => [n.id, { x: (i % 4) * 250, y: Math.floor(i / 4) * 160 }]));
+      const res = await window.api.workflows.save({
+        automationId: id,
+        document: { schemaVersion: 1, id, name, nodes: flow.nodes, edges: flow.edges, variables: flow.variables ?? {}, settings: { timeoutSeconds: 600, errorPolicy: "stop" }, visual: { positions } } as never,
+      });
+      if (!res.ok) throw new Error(res.error.message);
+    },
+    { name, flow },
+  );
+}

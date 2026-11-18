@@ -1,0 +1,151 @@
+{
+  "meta": {
+    "id": "backup-condicional",
+    "name": "Backup condicional",
+    "description": "Copia um arquivo para a pasta de backup. Se a pasta ainda não existe, cria antes. Exemplo de decisão com “Verificar existência”.",
+    "windowsOnly": false
+  },
+  "workflow": {
+    "schemaVersion": 1,
+    "id": "template",
+    "name": "template",
+    "nodes": [
+      {
+        "id": "start",
+        "type": "trigger.manual",
+        "version": 1,
+        "config": {}
+      },
+      {
+        "id": "existe",
+        "type": "files.exists",
+        "version": 1,
+        "config": {
+          "path": "{{variables.pastaBackup}}"
+        }
+      },
+      {
+        "id": "copiar",
+        "type": "files.copy",
+        "version": 1,
+        "config": {
+          "source": "{{variables.arquivo}}",
+          "destination": "{{variables.pastaBackup}}",
+          "overwrite": false
+        }
+      },
+      {
+        "id": "criar",
+        "type": "files.create_folder",
+        "version": 1,
+        "config": {
+          "path": "{{variables.pastaBackup}}"
+        }
+      },
+      {
+        "id": "copiar2",
+        "type": "files.copy",
+        "version": 1,
+        "config": {
+          "source": "{{variables.arquivo}}",
+          "destination": "{{variables.pastaBackup}}",
+          "overwrite": false
+        }
+      },
+      {
+        "id": "fim",
+        "type": "flow.end",
+        "version": 1,
+        "config": {
+          "message": "Backup concluído"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e:start.next>existe",
+        "source": "start",
+        "sourceHandle": "next",
+        "target": "existe",
+        "targetHandle": "input"
+      },
+      {
+        "id": "e:existe.true>copiar",
+        "source": "existe",
+        "sourceHandle": "true",
+        "target": "copiar",
+        "targetHandle": "input"
+      },
+      {
+        "id": "e:existe.false>criar",
+        "source": "existe",
+        "sourceHandle": "false",
+        "target": "criar",
+        "targetHandle": "input"
+      },
+      {
+        "id": "e:criar.success>copiar2",
+        "source": "criar",
+        "sourceHandle": "success",
+        "target": "copiar2",
+        "targetHandle": "input"
+      },
+      {
+        "id": "e:copiar.success>fim",
+        "source": "copiar",
+        "sourceHandle": "success",
+        "target": "fim",
+        "targetHandle": "input"
+      },
+      {
+        "id": "e:copiar2.success>fim",
+        "source": "copiar2",
+        "sourceHandle": "success",
+        "target": "fim",
+        "targetHandle": "input"
+      }
+    ],
+    "variables": {
+      "arquivo": {
+        "type": "string",
+        "value": "%USERPROFILE%\\Documents\\importante.docx"
+      },
+      "pastaBackup": {
+        "type": "string",
+        "value": "%USERPROFILE%\\Documents\\Backup"
+      }
+    },
+    "settings": {
+      "timeoutSeconds": 600,
+      "errorPolicy": "stop"
+    },
+    "visual": {
+      "positions": {
+        "start": {
+          "x": 0,
+          "y": 160
+        },
+        "existe": {
+          "x": 230,
+          "y": 140
+        },
+        "copiar": {
+          "x": 520,
+          "y": 40
+        },
+        "criar": {
+          "x": 520,
+          "y": 260
+        },
+        "copiar2": {
+          "x": 780,
+          "y": 260
+        },
+        "fim": {
+          "x": 1040,
+          "y": 150
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,114 @@
+{
+  "meta": {
+    "id": "bloco-de-notas",
+    "name": "Abrir o Bloco de Notas e digitar",
+    "description": "Abre o Bloco de Notas, espera a janela aparecer e digita um texto. Só funciona no Windows; o texto vai para a janela que estiver em foco.",
+    "windowsOnly": true
+  },
+  "workflow": {
+    "schemaVersion": 1,
+    "id": "template",
+    "name": "template",
+    "nodes": [
+      {
+        "id": "start",
+        "type": "trigger.manual",
+        "version": 1,
+        "config": {}
+      },
+      {
+        "id": "abrir",
+        "type": "windows.open_app",
+        "version": 1,
+        "config": {
+          "application": "notepad.exe",
+          "arguments": ""
+        }
+      },
+      {
+        "id": "janela",
+        "type": "windows.activate_window",
+        "version": 1,
+        "config": {
+          "title": "Bloco de Notas",
+          "timeoutSeconds": 10
+        }
+      },
+      {
+        "id": "digitar",
+        "type": "input.type_text",
+        "version": 1,
+        "config": {
+          "text": "Olá! Este texto foi digitado pelo Automation Studio."
+        }
+      },
+      {
+        "id": "fim",
+        "type": "flow.end",
+        "version": 1,
+        "config": {
+          "message": "Texto digitado"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e:start.next>abrir",
+        "source": "start",
+        "sourceHandle": "next",
+        "target": "abrir",
+        "targetHandle": "input"
+      },
+      {
+        "id": "e:abrir.success>janela",
+        "source": "abrir",
+        "sourceHandle": "success",
+        "target": "janela",
+        "targetHandle": "input"
+      },
+      {
+        "id": "e:janela.success>digitar",
+        "source": "janela",
+        "sourceHandle": "success",
+        "target": "digitar",
+        "targetHandle": "input"
+      },
+      {
+        "id": "e:digitar.success>fim",
+        "source": "digitar",
+        "sourceHandle": "success",
+        "target": "fim",
+        "targetHandle": "input"
+      }
+    ],
+    "variables": {},
+    "settings": {
+      "timeoutSeconds": 600,
+      "errorPolicy": "stop"
+    },
+    "visual": {
+      "positions": {
+        "start": {
+          "x": 0,
+          "y": 120
+        },
+        "abrir": {
+          "x": 220,
+          "y": 100
+        },
+        "janela": {
+          "x": 470,
+          "y": 100
+        },
+        "digitar": {
+          "x": 730,
+          "y": 100
+        },
+        "fim": {
+          "x": 990,
+          "y": 120
+        }
+      }
+    }
+  }
+}

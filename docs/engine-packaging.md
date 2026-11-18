@@ -2,7 +2,7 @@
 
 **Objetivo (Fase 3):** provar que o motor vira um executável que roda **sem Python instalado** e que `pywinauto`/`pyautogui` entram nele. Descobrir agora, e não na Fase 9, se o PyInstaller briga com essas bibliotecas.
 
-**Status:** mecanismo validado em Linux (35 MB, handshake em 0,05 s, funciona com PATH sem Python, Electron o inicia). **Falta validar no Windows.**
+**Status:** ✅ validado em Linux (35 MB, handshake 0,05 s) **e no Windows** (Python 3.14.8, `pywinauto` 0.6.9 + `pyautogui` 0.9.54 importam dentro do executável congelado, handshake 0,61 s, 13/13 verificações com PATH sem Python). Ainda não exercitado no Windows: o Electron iniciando esse executável (`AUTOMATION_STUDIO_ENGINE`) e o modo dev com `py -3`.
 
 ## Passo a passo no Windows (PowerShell, na raiz do projeto)
 

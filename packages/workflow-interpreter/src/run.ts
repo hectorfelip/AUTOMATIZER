@@ -9,6 +9,8 @@ import type {
 } from "@automation-studio/shared-types";
 import type { WorkflowDocument, WorkflowNode } from "@automation-studio/workflow-schema";
 import { hasErrors, validateWorkflow } from "@automation-studio/workflow-validator";
+import { VARIABLE_NAME_PATTERN } from "@automation-studio/workflow-schema";
+import { coerceToDeclared, evaluateCondition, OPERATOR_LABELS } from "./control.js";
 import { initialVariables, resolveConfig } from "./resolve.js";
 
 export interface ActionExecutor {
@@ -32,7 +34,8 @@ export interface RunResult {
   durationMs: number;
 }
 
-export const DEFAULT_MAX_STEPS = 10_000;
+/** Rede de segurança contra loop infinito; o timeout global é a outra. Alto de propósito: "Repetir" aceita até 100 000 voltas. */
+export const DEFAULT_MAX_STEPS = 1_000_000;
 
 /**
  * Percorre o grafo a partir do início, executa os nós e segue a porta de saída indicada pelo resultado.
@@ -78,6 +81,48 @@ export async function runWorkflow(doc: WorkflowDocument, opts: RunOptions): Prom
   const next = new Map<string, string>(doc.edges.map((e) => [`${e.source}:${e.sourceHandle}`, e.target]));
   const variables = initialVariables(doc);
   const maxSteps = opts.maxSteps ?? DEFAULT_MAX_STEPS;
+  const repeatCounters = new Map<string, number>(); // voltas já dadas por nó "Repetir" (isolado por execução)
+
+  const invalid = (message: string): ActionOutcome => ({ kind: "failed", error: { code: "INVALID_CONFIG", message } });
+
+  const setVariable = (node: WorkflowNode): ActionOutcome => {
+    const name = node.config["name"];
+    if (typeof name !== "string" || !VARIABLE_NAME_PATTERN.test(name)) return invalid("O nome da variável é inválido.");
+    const resolved = resolveConfig({ value: node.config["value"] ?? "" }, variables); // sem tipo: a referência pura mantém o tipo original
+    if (!resolved.ok) return invalid(resolved.message);
+    const raw = resolved.config["value"];
+    const coerced = coerceToDeclared(name, raw === null ? "" : raw!, doc.variables[name]?.type);
+    if (!coerced.ok) return invalid(coerced.message);
+    variables[name] = coerced.value;
+    return { kind: "completed", outputs: { [name]: coerced.value }, message: `Variável “${name}” = ${String(coerced.value)}.` };
+  };
+
+  const evaluate = (node: WorkflowNode): ActionOutcome => {
+    const resolved = resolveConfig(node.config, variables, { left: "text", right: "text" });
+    if (!resolved.ok) return invalid(resolved.message);
+    const left = String(resolved.config["left"] ?? "");
+    const right = String(resolved.config["right"] ?? "");
+    const operator = String(resolved.config["operator"] ?? "");
+    const result = evaluateCondition(left, operator, right);
+    if (!result.ok) return invalid(result.message);
+    return { kind: "completed", outputs: { result: result.value }, next: result.value ? "true" : "false", message: `“${left}” ${OPERATOR_LABELS[operator]} “${right}”: ${result.value ? "verdadeiro" : "falso"}.` };
+  };
+
+  const repeat = (node: WorkflowNode): ActionOutcome => {
+    const resolved = resolveConfig({ times: node.config["times"] ?? null }, variables, { times: "number" });
+    if (!resolved.ok) return invalid(resolved.message);
+    const times = resolved.config["times"];
+    if (typeof times !== "number" || !Number.isInteger(times) || times < 1 || times > 100_000) {
+      return invalid("“Vezes” deve ser um número inteiro entre 1 e 100000.");
+    }
+    const done = repeatCounters.get(node.id) ?? 0;
+    if (done < times) {
+      repeatCounters.set(node.id, done + 1);
+      return { kind: "completed", outputs: { iteration: done + 1 }, next: "body", message: `Repetição ${done + 1} de ${times}.` };
+    }
+    repeatCounters.delete(node.id); // pronto para uma próxima passagem (ex.: laço dentro de outro laço)
+    return { kind: "completed", outputs: { iterations: times }, next: "done", message: `${times} repetição(ões) concluída(s).` };
+  };
 
   let current: string | undefined = doc.nodes.find((n) => n.type === "trigger.manual")!.id;
   for (let steps = 0; current !== undefined; steps++) {
@@ -98,6 +143,12 @@ export async function runWorkflow(doc: WorkflowDocument, opts: RunOptions): Prom
       const message = typeof node.config["message"] === "string" && node.config["message"] ? node.config["message"] : undefined;
       emit({ type: "node_completed", executionId, at: at(), nodeId: node.id, port: null, ...(message ? { message } : {}) });
       return finish("completed", undefined, message);
+    } else if (node.type === "data.set_variable") {
+      outcome = setVariable(node);
+    } else if (node.type === "flow.condition") {
+      outcome = evaluate(node);
+    } else if (node.type === "flow.repeat") {
+      outcome = repeat(node);
     } else {
       const resolved = resolveConfig(node.config, variables, Object.fromEntries(def.fields.map((f) => [f.key, f.kind])));
       if (!resolved.ok) {

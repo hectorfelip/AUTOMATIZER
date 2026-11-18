@@ -59,6 +59,7 @@ Entregar relatório curto com: critérios atendidos / não atendidos, desvios do
 - **Segurança Electron:** `contextIsolation` on, `nodeIntegration` off, preload mínimo e tipado, todo argumento de IPC validado, sem API genérica de fs/shell no renderer.
 - **Sem `eval`** nem execução de expressão arbitrária vinda do fluxo; expressões por mecanismo limitado e tipado.
 - **Protocolo:** stdout do Python é exclusivo do protocolo (JSON Lines); diagnóstico vai para stderr. Validar tamanho/formato das mensagens nos dois lados. Especificação em `docs/PROTOCOL.md`; mudou o protocolo, atualize o doc e `ENGINE_PROTOCOL_VERSION`.
+- **Ações:** caminhos sempre absolutos; nenhuma ação apaga arquivos (só substitui destino com `overwrite`, que exige confirmação na UI); conflitos são checados antes de alterar; teclado/mouse com failsafe ligado. Referência em `docs/ACTIONS.md`.
 - **Execução:** o interpretador nunca executa fluxo com erros de validação; falha do motor é estado do app (mensagem clara), nunca exceção não tratada; ações de teste do motor só com `AUTOMATION_ENGINE_TEST_ACTIONS=1`.
 - **Importação nunca executa automaticamente.** Validar schema e versão; rejeitar o desconhecido.
 - **Segredos** só no Windows Credential Manager — nunca em `definition_json`, logs ou exportações.

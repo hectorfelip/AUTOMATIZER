@@ -6,8 +6,9 @@ import { Dialog } from "../../components/ui/Dialog";
 import { errorMessage } from "../../lib/api";
 import { useAutomations } from "../../stores/automations";
 import { NameDialog } from "./NameDialog";
+import { TemplateDialog } from "./TemplateDialog";
 
-type Dlg = { kind: "create" } | { kind: "rename"; item: Automation } | { kind: "delete"; item: Automation } | null;
+type Dlg = { kind: "create" } | { kind: "template" } | { kind: "rename"; item: Automation } | { kind: "delete"; item: Automation } | null;
 
 const fmt = (iso: string) => new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 
@@ -34,9 +35,12 @@ export function AutomationsPage({ openCreate = false, onOpen }: { openCreate?: b
     <section className="flex flex-col gap-4">
       <header className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Automações</h1>
-        <Button variant="primary" onClick={() => setDialog({ kind: "create" })}>
-          Nova automação
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => setDialog({ kind: "template" })}>Novo a partir de exemplo</Button>
+          <Button variant="primary" onClick={() => setDialog({ kind: "create" })}>
+            Nova automação
+          </Button>
+        </div>
       </header>
 
       <div role="group" aria-label="Filtro de estado" className="flex gap-2">
@@ -112,6 +116,8 @@ export function AutomationsPage({ openCreate = false, onOpen }: { openCreate?: b
           dialog?.kind === "rename" ? rename(dialog.item.id, name) : create(name, description)
         }
       />
+
+      <TemplateDialog open={dialog?.kind === "template"} onClose={close} onCreated={onOpen} />
 
       <Dialog open={dialog?.kind === "delete"} title="Excluir automação" onClose={close}>
         <p>

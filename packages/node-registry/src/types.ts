@@ -14,6 +14,8 @@ export interface ConfigField {
   max?: number;
   placeholder?: string;
   help?: string;
+  /** Não aceita `{{variables.x}}`: o valor precisa ser fixo (ex.: nome de variável). */
+  literal?: boolean;
   /** Regex (fonte) que valores literais devem respeitar. */
   pattern?: string;
   patternMessage?: string;

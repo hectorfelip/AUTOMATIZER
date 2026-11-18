@@ -1,0 +1,104 @@
+{
+  "meta": {
+    "id": "organizar-pdfs",
+    "name": "Organizar PDFs da pasta Downloads",
+    "description": "Move todos os PDFs de Downloads para Documentos\\PDFs. Edite as variáveis “origem” e “destino” para usar outras pastas.",
+    "windowsOnly": false
+  },
+  "workflow": {
+    "schemaVersion": 1,
+    "id": "template",
+    "name": "template",
+    "nodes": [
+      {
+        "id": "start",
+        "type": "trigger.manual",
+        "version": 1,
+        "config": {}
+      },
+      {
+        "id": "pasta",
+        "type": "files.create_folder",
+        "version": 1,
+        "config": {
+          "path": "{{variables.destino}}"
+        }
+      },
+      {
+        "id": "mover",
+        "type": "files.move",
+        "version": 1,
+        "config": {
+          "source": "{{variables.origem}}\\*.pdf",
+          "destination": "{{variables.destino}}",
+          "overwrite": false
+        }
+      },
+      {
+        "id": "fim",
+        "type": "flow.end",
+        "version": 1,
+        "config": {
+          "message": "PDFs organizados"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e:start.next>pasta",
+        "source": "start",
+        "sourceHandle": "next",
+        "target": "pasta",
+        "targetHandle": "input"
+      },
+      {
+        "id": "e:pasta.success>mover",
+        "source": "pasta",
+        "sourceHandle": "success",
+        "target": "mover",
+        "targetHandle": "input"
+      },
+      {
+        "id": "e:mover.success>fim",
+        "source": "mover",
+        "sourceHandle": "success",
+        "target": "fim",
+        "targetHandle": "input"
+      }
+    ],
+    "variables": {
+      "origem": {
+        "type": "string",
+        "value": "%USERPROFILE%\\Downloads"
+      },
+      "destino": {
+        "type": "string",
+        "value": "%USERPROFILE%\\Documents\\PDFs"
+      }
+    },
+    "settings": {
+      "timeoutSeconds": 600,
+      "errorPolicy": "stop"
+    },
+    "visual": {
+      "positions": {
+        "start": {
+          "x": 0,
+          "y": 120
+        },
+        "pasta": {
+          "x": 230,
+          "y": 100
+        },
+        "mover": {
+          "x": 480,
+          "y": 100
+        },
+        "fim": {
+          "x": 740,
+          "y": 120
+        }
+      }
+    }
+  }
+}

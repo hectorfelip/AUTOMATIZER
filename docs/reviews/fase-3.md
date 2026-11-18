@@ -11,9 +11,9 @@ Verificação executada: `npm run check` ✅ (lint, typecheck, build, **202 test
 | Eventos aparecem na interface | ✅ | e2e: aba "Execução" com estado por nó, barra de progresso e resultado final |
 | Falha do motor não encerra o app | ✅ | e2e: `SIGKILL` no motor durante a execução → "Execução falhou", app de pé, motor reinicia e roda de novo; motor ausente → app abre normalmente |
 | Logs de protocolo não se misturam com stdout de diagnóstico | ✅ | pytest (com **teste de mutação**: sem o redirecionamento o teste falha) + integração Node |
-| Motor empacotado responde sem Python global (Windows) | ⚠️ **Linux ✅ / Windows pendente** | `scripts/verify-engine.py --clean-path` passa em Linux; Electron inicia o executável congelado (e2e). Falta o Hector rodar `docs/engine-packaging.md` |
+| Motor empacotado responde sem Python global (Windows) | ✅ **Linux e Windows** | Windows (Hector): Python 3.14.8, `pywinauto` 0.6.9 e `pyautogui` 0.9.54 importam no executável congelado, handshake 0,61 s, 13/13 com PATH sem Python. Linux: idem + Electron inicia o executável (e2e) |
 
-Tarefas do roadmap: 11/12 (o **spike** só fecha com a validação no Windows).
+Tarefas do roadmap: 12/12.
 
 ## Regressão das Fases 0–2
 Os 11 e2e anteriores passam. Dois ajustes **intencionais**: o card do motor no Dashboard agora é dinâmico (antes o teste esperava "Indisponível" fixo) e a asserção de segurança do preload lista os grupos novos (`engine`, `executions`), continuando a ser trava. `AppInfo` perdeu o campo `engineStatus` (substituído pelo canal `engine:status`).
@@ -39,4 +39,7 @@ Os 11 e2e anteriores passam. Dois ajustes **intencionais**: o card do motor no D
 - Antivírus pode sinalizar o executável PyInstaller (mitigar com assinatura na Fase 9).
 
 ## Não verificável aqui (precisa do Hector no Windows)
-(1) **Spike**: `docs/engine-packaging.md` — build com `pywinauto`/`pyautogui`, `verify-engine.py --clean-path`, Defender/SmartScreen. (2) App em modo dev no Windows com Python: `py -3` e o *stub* do Python da Microsoft Store. (3) Executar um fluxo no Windows (Dashboard "Disponível" + Executar).
+✅ Spike validado pelo Hector (ver tabela). **Ainda não exercitado no Windows:** o app Electron iniciando o motor (modo dev com `py -3`, e/ou `AUTOMATION_STUDIO_ENGINE`) e executar um fluxo por lá (Dashboard "Disponível" + Executar).
+
+## Decisões do Hector
+ADR 0006 aprovado integralmente.

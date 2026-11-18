@@ -74,7 +74,7 @@ Desenvolver em entregas verticais. Cada fase deve terminar com algo executável 
 
 ### Tarefas
 - [x] Criar processo Python empacotável.
-- [ ] Spike de empacotamento: gerar o motor como executável (ex.: PyInstaller) com pywinauto/PyAutoGUI e iniciá-lo pelo Electron em Windows real, para descobrir incompatibilidades antes da Fase 9. *(scripts prontos e validados em Linux; falta rodar no Windows: `docs/engine-packaging.md`)*
+- [x] Spike de empacotamento: gerar o motor como executável (ex.: PyInstaller) com pywinauto/PyAutoGUI e iniciá-lo pelo Electron em Windows real, para descobrir incompatibilidades antes da Fase 9. *(Windows: executável + pywinauto/pyautogui validados; Electron iniciando o .exe ainda não exercitado no Windows)*
 - [x] Implementar protocolo JSON Lines.
 - [x] Implementar inicialização e encerramento do motor.
 - [x] Implementar heartbeat/status do motor.
@@ -98,21 +98,21 @@ Desenvolver em entregas verticais. Cada fase deve terminar com algo executável 
 ## Fase 4 — Biblioteca essencial de ações
 
 ### Tarefas
-- [ ] Implementar esperar.
-- [ ] Implementar definir variável.
-- [ ] Implementar comparação e condição.
-- [ ] Implementar repetição N vezes.
-- [ ] Implementar listar arquivos.
-- [ ] Implementar verificar existência.
-- [ ] Implementar criar pasta.
-- [ ] Implementar copiar e mover arquivos.
-- [ ] Implementar renomear arquivo.
-- [ ] Implementar abrir aplicativo.
-- [ ] Implementar localizar e ativar janela.
-- [ ] Implementar digitar texto.
-- [ ] Implementar clique e teclas.
-- [ ] Implementar resultado estruturado por ação.
-- [ ] Criar exemplos prontos.
+- [x] Implementar esperar.
+- [x] Implementar definir variável.
+- [x] Implementar comparação e condição.
+- [x] Implementar repetição N vezes.
+- [x] Implementar listar arquivos.
+- [x] Implementar verificar existência.
+- [x] Implementar criar pasta.
+- [x] Implementar copiar e mover arquivos.
+- [x] Implementar renomear arquivo.
+- [ ] Implementar abrir aplicativo. *(implementado e testado com dublês; falta validar no Windows: `scripts/verify-actions.py`)*
+- [ ] Implementar localizar e ativar janela. *(implementado e testado com dublês; falta validar no Windows: `scripts/verify-actions.py`)*
+- [ ] Implementar digitar texto. *(implementado e testado com dublês; falta validar no Windows: `scripts/verify-actions.py`)*
+- [ ] Implementar clique e teclas. *(implementado e testado com dublês; falta validar no Windows: `scripts/verify-actions.py`)*
+- [x] Implementar resultado estruturado por ação.
+- [x] Criar exemplos prontos.
 
 ### Critérios de aceite
 - Usuário consegue criar uma automação útil de organização de arquivos.
