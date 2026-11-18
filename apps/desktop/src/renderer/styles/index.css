@@ -47,3 +47,22 @@ body {
   outline: 2px solid var(--brand);
   outline-offset: 2px;
 }
+
+/* React Flow usa os tokens do app (o tema escuro vem da classe .dark no <html>). */
+.react-flow {
+  --xy-background-color: var(--bg);
+  --xy-background-pattern-color: var(--border);
+  --xy-edge-stroke: var(--muted);
+  --xy-edge-stroke-selected: var(--brand);
+  --xy-controls-button-background-color: var(--panel);
+  --xy-controls-button-background-color-hover: var(--bg);
+  --xy-controls-button-color: var(--fg);
+  --xy-controls-button-border-color: var(--border);
+  --xy-attribution-background-color: var(--panel);
+}
+.react-flow__handle {
+  width: 12px;
+  height: 12px;
+  background: var(--brand);
+  border: 2px solid var(--panel);
+}

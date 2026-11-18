@@ -101,8 +101,9 @@ test("renderer não tem acesso a Node e a API exposta é mínima", async () => {
   const csp = await page.locator('meta[http-equiv="Content-Security-Policy"]').getAttribute("content");
   expect(csp).toContain("script-src 'self'");
   expect(csp).not.toContain("unsafe-eval");
-  expect(probe.api).toEqual(["app", "automations", "settings"]);
+  expect(probe.api).toEqual(["app", "automations", "settings", "workflows"]);
   expect(probe.apiMethods["automations"]).toEqual(["archive", "create", "delete", "list", "rename", "restore"]);
+  expect(probe.apiMethods["workflows"]).toEqual(["load", "save"]);
 
   const prefs = await app.evaluate(({ BrowserWindow }) => {
     // getLastWebPreferences existe em runtime, mas não consta nos tipos públicos do Electron.

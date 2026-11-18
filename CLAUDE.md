@@ -63,8 +63,9 @@ Entregar relatório curto com: critérios atendidos / não atendidos, desvios do
 - **Segredos** só no Windows Credential Manager — nunca em `definition_json`, logs ou exportações.
 - **Ações destrutivas** (excluir, sobrescrever) exigem confirmação e são testadas só em diretórios temporários.
 - **Sem shell arbitrário no MVP;** lista explícita de ações permitidas.
-- **Fluxo é JSON versionado**; dados visuais separados da config executável.
+- **Fluxo é JSON versionado** (`schemaVersion`); dados visuais ficam em `visual`, separados da config executável dos nós (ADR 0005). Salvar cria versão imutável em `workflow_versions`; nunca alterar uma versão salva.
 - **Prioridade de automação de UI:** UI Automation > janela/processo > Playwright > imagem/OCR > coordenadas (último recurso).
+- **Workspaces:** pacotes em `packages/*` são código-fonte TS embutido no bundle do Electron (lista derivada do `package.json` em `electron.vite.config.ts`); declare todo pacote novo como dependência do app que o usa.
 - **Banco:** `node:sqlite` (embutido no Node/Electron, sem módulo nativo). Migrações em `/database/migrations/NNNN_*.sql`, nunca editar uma já aplicada: criar nova (ADR 0004).
 - Decisões listadas em `ARCHITECTURE.md` §15 (lib de automação Windows, OCR, agendamento, etc.) ficam abertas até haver protótipo em Windows real.
 

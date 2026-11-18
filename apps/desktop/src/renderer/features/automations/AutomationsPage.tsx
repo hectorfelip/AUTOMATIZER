@@ -11,7 +11,7 @@ type Dlg = { kind: "create" } | { kind: "rename"; item: Automation } | { kind: "
 
 const fmt = (iso: string) => new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 
-export function AutomationsPage({ openCreate = false }: { openCreate?: boolean }) {
+export function AutomationsPage({ openCreate = false, onOpen }: { openCreate?: boolean; onOpen: (id: string) => void }) {
   const { items, loaded, loadError, create, rename, archive, restore, remove, load } = useAutomations();
   const [tab, setTab] = useState<"active" | "archived">("active");
   const [dialog, setDialog] = useState<Dlg>(openCreate ? { kind: "create" } : null);
@@ -79,6 +79,9 @@ export function AutomationsPage({ openCreate = false }: { openCreate?: boolean }
               <p className="text-xs text-muted">Atualizada em {fmt(a.updatedAt)}</p>
             </div>
             <div className="flex gap-2">
+              <Button size="sm" variant="primary" aria-label={`Abrir ${a.name}`} onClick={() => onOpen(a.id)}>
+                Abrir
+              </Button>
               <Button size="sm" aria-label={`Renomear ${a.name}`} onClick={() => setDialog({ kind: "rename", item: a })}>
                 Renomear
               </Button>

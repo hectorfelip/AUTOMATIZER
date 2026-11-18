@@ -3,6 +3,8 @@ import {
   IPC,
   automationIdSchema,
   createAutomationSchema,
+  loadWorkflowSchema,
+  saveWorkflowSchema,
   noInputSchema,
   renameAutomationSchema,
   settingsPatchSchema,
@@ -12,6 +14,7 @@ import {
 import type { AutomationService } from "../services/automations.js";
 import { AppError } from "../services/errors.js";
 import type { SettingsService } from "../services/settings.js";
+import type { WorkflowService } from "../services/workflows.js";
 
 /** Subconjunto de `ipcMain` usado aqui, para permitir testes sem Electron. */
 export interface IpcMainLike {
@@ -24,6 +27,7 @@ export interface IpcMainLike {
 export interface IpcDeps {
   automations: AutomationService;
   settings: SettingsService;
+  workflows: WorkflowService;
   appInfo: AppInfo;
   /** Só frames cuja URL passa nesta checagem podem chamar o Main. */
   isTrustedUrl: (url: string) => boolean;
@@ -48,13 +52,15 @@ export function registerIpc(ipc: IpcMainLike, deps: IpcDeps): void {
       }
     });
 
-  const { automations, settings } = deps;
+  const { automations, settings, workflows } = deps;
   route(IPC.automationsList, noInputSchema, () => automations.list());
   route(IPC.automationsCreate, createAutomationSchema, (i) => automations.create(i));
   route(IPC.automationsRename, renameAutomationSchema, (i) => automations.rename(i.id, i.name));
   route(IPC.automationsArchive, automationIdSchema, (i) => automations.setArchived(i.id, true));
   route(IPC.automationsRestore, automationIdSchema, (i) => automations.setArchived(i.id, false));
   route(IPC.automationsDelete, automationIdSchema, (i) => automations.remove(i.id));
+  route(IPC.workflowsLoad, loadWorkflowSchema, (i) => workflows.load(i.automationId));
+  route(IPC.workflowsSave, saveWorkflowSchema, (i) => workflows.save(i.automationId, i.document));
   route(IPC.settingsGet, noInputSchema, () => settings.get());
   route(IPC.settingsUpdate, settingsPatchSchema, (p) => settings.update(p));
   route(IPC.appInfo, noInputSchema, () => deps.appInfo);

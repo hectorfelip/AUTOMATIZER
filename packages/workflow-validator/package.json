@@ -1,0 +1,14 @@
+{
+  "name": "@automation-studio/workflow-validator",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "sideEffects": false,
+  "scripts": { "typecheck": "tsc --noEmit -p tsconfig.json" },
+  "dependencies": {
+    "@automation-studio/node-registry": "*",
+    "@automation-studio/workflow-schema": "*"
+  }
+}

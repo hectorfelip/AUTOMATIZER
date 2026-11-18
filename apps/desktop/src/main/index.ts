@@ -4,6 +4,7 @@ import { openDatabase } from "./database/db.js";
 import { registerIpc } from "./ipc/register.js";
 import { createAutomationService } from "./services/automations.js";
 import { createSettingsService } from "./services/settings.js";
+import { createWorkflowService } from "./services/workflows.js";
 import { createMainWindow, isTrustedUrl } from "./windows/mainWindow.js";
 
 // Permite aos testes e2e isolar os dados; em uso normal vale o diretório padrão do usuário.
@@ -18,6 +19,7 @@ if (!app.requestSingleInstanceLock()) {
     registerIpc(ipcMain, {
       automations: createAutomationService(db),
       settings: createSettingsService(db),
+      workflows: createWorkflowService(db),
       appInfo: { version: app.getVersion(), dataPath: app.getPath("userData"), engineStatus: "unavailable" },
       isTrustedUrl,
       onError: (err) => console.error("[ipc]", err),

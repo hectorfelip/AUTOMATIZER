@@ -1,6 +1,6 @@
 # ADR 0004 — SQLite embutido (`node:sqlite`) e toolchain da Fase 1
 
-**Status:** proposta — aguardando aprovação do Hector (item 1 é decisão de risco)
+**Status:** aceita (aprovada pelo Hector; app validado no Windows)
 
 ## Contexto
 `ARCHITECTURE.md` diz apenas "SQLite". As bibliotecas comuns (`better-sqlite3`) são módulos nativos: cada Electron exige recompilação (ABI), e o mesmo `node_modules` não serve ao Electron e ao Vitest ao mesmo tempo.

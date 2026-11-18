@@ -1,9 +1,13 @@
 import { useEffect, useState } from "react";
 import { Sidebar, type Page } from "../components/Sidebar";
+import { Button } from "../components/ui/Button";
+import { Dialog } from "../components/ui/Dialog";
 import { AutomationsPage } from "../features/automations/AutomationsPage";
 import { Dashboard } from "../features/dashboard/Dashboard";
+import { EditorPage } from "../features/editor/EditorPage";
 import { SettingsPage } from "../features/settings/SettingsPage";
 import { useAutomations } from "../stores/automations";
+import { isDirty, useEditor } from "../stores/editor";
 import { useSettings } from "../stores/settings";
 
 function useApplyTheme() {
@@ -17,9 +21,12 @@ function useApplyTheme() {
   }, [theme]);
 }
 
+type View = { page: "dashboard" | "automations" | "settings"; createOnOpen?: boolean } | { page: "editor"; automationId: string };
+
 export function App() {
-  const [page, setPage] = useState<Page>("dashboard");
-  const [createOnOpen, setCreateOnOpen] = useState(false);
+  const [view, setView] = useState<View>({ page: "dashboard" });
+  const [pending, setPending] = useState<View | null>(null); // destino aguardando decisão sobre alterações não salvas
+  const [leaving, setLeaving] = useState(false);
   useApplyTheme();
 
   useEffect(() => {
@@ -27,26 +34,51 @@ export function App() {
     void useSettings.getState().load();
   }, []);
 
-  const navigate = (p: Page) => {
-    setCreateOnOpen(false);
-    setPage(p);
+  /** Troca de tela; se o editor tem alterações não salvas, pergunta antes. */
+  const go = (next: View) => {
+    if (view.page === "editor" && isDirty(useEditor.getState())) setPending(next);
+    else setView(next);
   };
+  const finishLeaving = (next: View) => {
+    setPending(null);
+    setView(next);
+  };
+
+  const navPage: Page = view.page === "editor" ? "automations" : view.page;
 
   return (
     <div className="flex h-screen">
-      <Sidebar page={page} onNavigate={navigate} />
-      <main className="flex-1 overflow-auto p-8">
-        {page === "dashboard" && (
-          <Dashboard
-            onCreate={() => {
-              setCreateOnOpen(true);
-              setPage("automations");
-            }}
-          />
+      <Sidebar page={navPage} onNavigate={(p) => go({ page: p })} />
+      <main className={view.page === "editor" ? "min-w-0 flex-1 overflow-hidden" : "flex-1 overflow-auto p-8"}>
+        {view.page === "dashboard" && <Dashboard onCreate={() => go({ page: "automations", createOnOpen: true })} />}
+        {view.page === "automations" && (
+          <AutomationsPage openCreate={view.createOnOpen} onOpen={(id) => go({ page: "editor", automationId: id })} />
         )}
-        {page === "automations" && <AutomationsPage openCreate={createOnOpen} />}
-        {page === "settings" && <SettingsPage />}
+        {view.page === "settings" && <SettingsPage />}
+        {view.page === "editor" && <EditorPage automationId={view.automationId} onBack={() => go({ page: "automations" })} />}
       </main>
+
+      <Dialog open={pending !== null} title="Alterações não salvas" onClose={() => setPending(null)}>
+        <p>Este fluxo tem alterações que ainda não foram salvas.</p>
+        <div className="flex justify-end gap-2">
+          <Button onClick={() => setPending(null)}>Continuar editando</Button>
+          <Button variant="danger" onClick={() => pending && finishLeaving(pending)}>
+            Descartar alterações
+          </Button>
+          <Button
+            variant="primary"
+            disabled={leaving}
+            onClick={async () => {
+              setLeaving(true);
+              const ok = await useEditor.getState().save();
+              setLeaving(false);
+              if (ok && pending) finishLeaving(pending);
+            }}
+          >
+            Salvar e sair
+          </Button>
+        </div>
+      </Dialog>
     </div>
   );
 }

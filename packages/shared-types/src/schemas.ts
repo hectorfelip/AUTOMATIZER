@@ -16,6 +16,9 @@ export const createAutomationSchema = z.strictObject({
 });
 export const renameAutomationSchema = z.strictObject({ id: idSchema, name: nameSchema });
 export const automationIdSchema = z.strictObject({ id: idSchema });
+export const loadWorkflowSchema = z.strictObject({ automationId: idSchema });
+// `document` é validado em profundidade pelo serviço (parseWorkflowDocument), que dá mensagens melhores.
+export const saveWorkflowSchema = z.strictObject({ automationId: idSchema, document: z.unknown() });
 export const settingsPatchSchema = z.strictObject({ theme: z.enum(THEMES) }).partial();
 export const noInputSchema = z.undefined();
 

@@ -3,6 +3,8 @@
  * Toda entrada é validada no Main com estes schemas; o renderer só recebe `IpcResult`.
  */
 
+import type { WorkflowDocument } from "@automation-studio/workflow-schema";
+
 // ---- Entidades ----
 export type AutomationStatus = "active" | "archived";
 
@@ -20,6 +22,19 @@ export type Theme = (typeof THEMES)[number];
 
 export interface AppSettings {
   theme: Theme;
+}
+
+export interface WorkflowLoadResult {
+  document: WorkflowDocument;
+  /** Versão salva carregada; 0 = automação nova, ainda sem nenhum salvamento. */
+  version: number;
+}
+
+export interface WorkflowSaveResult {
+  version: number;
+  /** true quando o conteúdo era idêntico à versão atual e nenhuma versão nova foi criada. */
+  unchanged: boolean;
+  savedAt: string;
 }
 
 export interface AppInfo {
@@ -41,12 +56,19 @@ export interface RenameAutomationInput {
 export interface AutomationIdInput {
   id: string;
 }
+export interface LoadWorkflowInput {
+  automationId: string;
+}
+export interface SaveWorkflowInput {
+  automationId: string;
+  document: WorkflowDocument;
+}
 export interface SettingsPatch {
   theme?: Theme;
 }
 
 // ---- Resultado ----
-export type ErrorCode = "VALIDATION" | "NOT_FOUND" | "UNTRUSTED_SENDER" | "INTERNAL";
+export type ErrorCode = "VALIDATION" | "NOT_FOUND" | "INVALID_DATA" | "UNTRUSTED_SENDER" | "INTERNAL";
 export type IpcResult<T> =
   | { ok: true; data: T }
   | { ok: false; error: { code: ErrorCode; message: string } };
@@ -59,6 +81,8 @@ export const IPC = {
   automationsArchive: "automations:archive",
   automationsRestore: "automations:restore",
   automationsDelete: "automations:delete",
+  workflowsLoad: "workflows:load",
+  workflowsSave: "workflows:save",
   settingsGet: "settings:get",
   settingsUpdate: "settings:update",
   appInfo: "app:info",
@@ -73,6 +97,10 @@ export interface DesktopApi {
     archive(input: AutomationIdInput): Promise<IpcResult<Automation>>;
     restore(input: AutomationIdInput): Promise<IpcResult<Automation>>;
     delete(input: AutomationIdInput): Promise<IpcResult<null>>;
+  };
+  workflows: {
+    load(input: LoadWorkflowInput): Promise<IpcResult<WorkflowLoadResult>>;
+    save(input: SaveWorkflowInput): Promise<IpcResult<WorkflowSaveResult>>;
   };
   settings: {
     get(): Promise<IpcResult<AppSettings>>;

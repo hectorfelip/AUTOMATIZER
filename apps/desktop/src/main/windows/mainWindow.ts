@@ -1,4 +1,4 @@
-import { BrowserWindow, shell } from "electron";
+import { BrowserWindow, dialog, shell } from "electron";
 import { join } from "node:path";
 
 /** URL do dev server (dev) ou null (produção, carrega arquivo local). */
@@ -34,6 +34,19 @@ export function createMainWindow(): BrowserWindow {
   });
   win.webContents.on("will-navigate", (e, url) => {
     if (!isTrustedUrl(url)) e.preventDefault();
+  });
+  // Fechar a janela com alterações não salvas: o renderer bloqueia (beforeunload) e aqui o usuário decide.
+  win.webContents.on("will-prevent-unload", (event) => {
+    const choice = dialog.showMessageBoxSync(win, {
+      type: "question",
+      buttons: ["Continuar editando", "Descartar e sair"],
+      defaultId: 0,
+      cancelId: 0,
+      title: "Alterações não salvas",
+      message: "Há alterações não salvas neste fluxo.",
+      detail: "Se sair agora, elas serão perdidas.",
+    });
+    if (choice === 1) event.preventDefault(); // ignora o bloqueio: a janela fecha
   });
   win.webContents.session.setPermissionRequestHandler((_wc, _perm, cb) => cb(false));
 

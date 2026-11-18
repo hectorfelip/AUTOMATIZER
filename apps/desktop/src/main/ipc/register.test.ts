@@ -3,6 +3,7 @@ import { IPC, type IpcResult } from "@automation-studio/shared-types";
 import { openDatabase } from "../database/db.js";
 import { createAutomationService } from "../services/automations.js";
 import { createSettingsService } from "../services/settings.js";
+import { createWorkflowService } from "../services/workflows.js";
 import { registerIpc, type IpcMainLike } from "./register.js";
 
 type Listener = Parameters<IpcMainLike["handle"]>[1];
@@ -22,6 +23,7 @@ beforeEach(() => {
     {
       automations: createAutomationService(db),
       settings: createSettingsService(db),
+      workflows: createWorkflowService(db),
       appInfo: { version: "0.0.0", dataPath: "/x", engineStatus: "unavailable" },
       isTrustedUrl: (u) => u.startsWith("file://"),
       onError: (e) => errors.push(e),
@@ -83,6 +85,7 @@ describe("IPC", () => {
       {
         automations: { list: () => { throw new Error("disk /secret/path exploded"); } } as never,
         settings: {} as never,
+        workflows: {} as never,
         appInfo: { version: "0", dataPath: "", engineStatus: "unavailable" },
         isTrustedUrl: () => true,
         onError: (e) => errors.push(e),
@@ -92,6 +95,20 @@ describe("IPC", () => {
     expect(r).toMatchObject({ ok: false, error: { code: "INTERNAL" } });
     expect(JSON.stringify(r)).not.toContain("secret");
     expect(errors).toHaveLength(1);
+  });
+
+  it("workflows: carrega fluxo inicial, salva e valida entrada", () => {
+    const a = call(IPC.automationsCreate, [{ name: "Fluxo" }]);
+    const automationId = a.ok ? a.data.id : "";
+    const loaded = call(IPC.workflowsLoad, [{ automationId }]);
+    expect(loaded).toMatchObject({ ok: true, data: { version: 0, document: { id: automationId, name: "Fluxo" } } });
+    const document = loaded.ok ? (loaded.data as unknown as { document: unknown }).document : null;
+    expect(call(IPC.workflowsSave, [{ automationId, document }])).toMatchObject({ ok: true, data: { version: 1, unchanged: false } });
+    expect(call(IPC.workflowsSave, [{ automationId, document }])).toMatchObject({ ok: true, data: { version: 1, unchanged: true } });
+    expect(call(IPC.workflowsSave, [{ automationId, document: { lixo: true } }])).toMatchObject({ ok: false, error: { code: "VALIDATION" } });
+    expect(call(IPC.workflowsSave, [{ automationId, document, extra: 1 }])).toMatchObject({ ok: false, error: { code: "VALIDATION" } });
+    expect(call(IPC.workflowsLoad, [{ automationId: "nope" }])).toMatchObject({ ok: false, error: { code: "NOT_FOUND" } });
+    expect(call(IPC.workflowsLoad, [{}])).toMatchObject({ ok: false, error: { code: "VALIDATION" } });
   });
 
   it("settings e info", () => {

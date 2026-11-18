@@ -1,9 +1,14 @@
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
+import { readFileSync } from "node:fs";
 import { defineConfig } from "electron-vite";
 
-// shared-types é código-fonte TS do workspace: precisa ser embutido no bundle, não externalizado.
-const build = { externalizeDeps: { exclude: ["@automation-studio/shared-types"] } };
+const pkg = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8")) as { dependencies?: Record<string, string> };
+
+// Pacotes do workspace são código-fonte TS: precisam ser embutidos no bundle, não externalizados
+// (o Electron não carrega .ts). A lista vem do package.json para não esquecer pacotes novos.
+const workspacePackages = Object.keys(pkg.dependencies ?? {}).filter((n) => n.startsWith("@automation-studio/"));
+const build = { externalizeDeps: { exclude: workspacePackages } };
 
 export default defineConfig({
   main: { build: { ...build, rollupOptions: { external: ["node:sqlite"] } } },

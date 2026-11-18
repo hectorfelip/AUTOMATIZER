@@ -49,20 +49,20 @@ Desenvolver em entregas verticais. Cada fase deve terminar com algo executável 
 ## Fase 2 — Editor visual
 
 ### Tarefas
-- [ ] Integrar React Flow.
-- [ ] Criar canvas com zoom e pan.
-- [ ] Criar biblioteca lateral de nós.
-- [ ] Criar categorias de ações.
-- [ ] Implementar arrastar e soltar.
-- [ ] Implementar conexões.
-- [ ] Criar painel de propriedades.
-- [ ] Implementar nós de início e término.
-- [ ] Implementar seleção, duplicação e exclusão.
-- [ ] Implementar desfazer/refazer.
-- [ ] Implementar salvamento e carregamento.
-- [ ] Separar dados visuais da configuração executável.
-- [ ] Criar esquema versionado do workflow.
-- [ ] Criar validação de parâmetros e conexões.
+- [x] Integrar React Flow.
+- [x] Criar canvas com zoom e pan.
+- [x] Criar biblioteca lateral de nós.
+- [x] Criar categorias de ações.
+- [x] Implementar arrastar e soltar.
+- [x] Implementar conexões.
+- [x] Criar painel de propriedades.
+- [x] Implementar nós de início e término.
+- [x] Implementar seleção, duplicação e exclusão.
+- [x] Implementar desfazer/refazer.
+- [x] Implementar salvamento e carregamento.
+- [x] Separar dados visuais da configuração executável.
+- [x] Criar esquema versionado do workflow.
+- [x] Criar validação de parâmetros e conexões.
 
 ### Critérios de aceite
 - Usuário monta um fluxo simples sem escrever código.

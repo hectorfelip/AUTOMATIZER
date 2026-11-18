@@ -22,6 +22,11 @@
     "vite": "^7"
   },
   "dependencies": {
+    "@automation-studio/node-registry": "^0.0.0",
+    "@automation-studio/shared-types": "^0.0.0",
+    "@automation-studio/workflow-schema": "^0.0.0",
+    "@automation-studio/workflow-validator": "^0.0.0",
+    "@xyflow/react": "^13.0.2",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "zod": "^4.6.7",

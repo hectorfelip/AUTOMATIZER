@@ -11,6 +11,10 @@ const api: DesktopApi = {
     restore: (input) => ipcRenderer.invoke(IPC.automationsRestore, input),
     delete: (input) => ipcRenderer.invoke(IPC.automationsDelete, input),
   },
+  workflows: {
+    load: (input) => ipcRenderer.invoke(IPC.workflowsLoad, input),
+    save: (input) => ipcRenderer.invoke(IPC.workflowsSave, input),
+  },
   settings: {
     get: () => ipcRenderer.invoke(IPC.settingsGet),
     update: (patch) => ipcRenderer.invoke(IPC.settingsUpdate, patch),
