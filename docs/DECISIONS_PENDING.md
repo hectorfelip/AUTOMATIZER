@@ -18,7 +18,7 @@ Também: **política de dados do instalador** (`docs/INSTALLER.md`): atualizar e
 |---|---|---|
 | API de plugins | [ADR 0014](adr/0014-plugins-de-acoes-proposta.md) | **Opção A (declarativa) já implementada** sob `/goal` — confirme ou mande reverter. Opção B (código) **não** feita e só com seus requisitos de segurança |
 | OCR / reconhecimento visual | [ADR 0015](adr/0015-ocr-e-reconhecimento-visual-proposta.md) | Protótipo com **Windows.Media.Ocr**; rode `scripts/spike-ocr.py` no Windows |
-| **Gravador** (Fase 7) | — (sem ADR) | Precisa de protótipo de ganchos globais no Windows (candidatas: `pynput` ou hooks do `pywin32`); posso escrever o ADR se você quiser o gravador |
+| **Gravador** (Fase 7) | [ADR 0016](adr/0016-gravador-proposta.md) | Protótipo com `pynput` (rode `scripts/spike-recorder.py` no Windows); desenho com indicador sempre visível, modo senha, revisão antes de criar; decidir também se entra um nó "clicar em elemento UIA" |
 
 ## 3. Validar no Windows (nada disto roda no Linux)
 1. `python -m pip install -r engine\python\requirements-windows.txt` e `python scripts\verify-actions.py` — arquivos 11/11 e abrir app **já passaram**; falta janela/teclado/mouse.
