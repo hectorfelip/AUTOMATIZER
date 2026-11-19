@@ -7,6 +7,7 @@ import type { WorkflowDocument } from "@automation-studio/workflow-schema";
 import type { EngineStatus } from "./engine.js";
 import type { ExecutionEvent, StartExecutionOptions, StartExecutionResult } from "./execution.js";
 import type { CreateScheduleInput, Schedule, ScheduleIdInput, SetScheduleEnabledInput, UpdateScheduleInput } from "./schedule.js";
+import type { CreateFromRecordingInput, RecordedStep, RecorderStatus } from "./recorder.js";
 import type { ClearHistoryInput, ExecutionDetail, HistoryFilters, HistoryPage, HistoryStats } from "./history.js";
 
 // ---- Entidades ----
@@ -226,6 +227,12 @@ export const IPC = {
   pluginsImportConfirm: "plugins:import-confirm",
   pluginsSetEnabled: "plugins:set-enabled",
   pluginsRemove: "plugins:remove",
+  recorderStatus: "recorder:status",
+  recorderStart: "recorder:start",
+  recorderPause: "recorder:pause",
+  recorderStop: "recorder:stop",
+  recorderCreate: "recorder:create",
+  recorderDiscard: "recorder:discard",
   settingsGet: "settings:get",
   settingsUpdate: "settings:update",
   appInfo: "app:info",
@@ -234,6 +241,7 @@ export const IPC = {
 /** Canais de eventos empurrados pelo Main (não são `invoke`). */
 export const PUSH = {
   engineStatus: "engine:status-changed",
+  recorderStatus: "recorder:status-changed",
   executionEvent: "executions:event",
 } as const;
 
@@ -305,6 +313,18 @@ export interface DesktopApi {
     importConfirm(input: PluginConfirmInput): Promise<IpcResult<PluginSummary>>;
     setEnabled(input: SetPluginEnabledInput): Promise<IpcResult<PluginSummary>>;
     remove(input: PluginIdInput): Promise<IpcResult<null>>;
+  };
+  recorder: {
+    status(): Promise<IpcResult<RecorderStatus>>;
+    start(): Promise<IpcResult<RecorderStatus>>;
+    pause(): Promise<IpcResult<RecorderStatus>>;
+    /** Para e devolve os passos para REVISÃO (nada vira fluxo antes disso). */
+    stop(): Promise<IpcResult<RecordedStep[]>>;
+    /** Cria a automação (nunca a executa) e apaga a gravação da memória. */
+    create(input: CreateFromRecordingInput): Promise<IpcResult<Automation>>;
+    /** Descarta tudo o que foi gravado. */
+    discard(): Promise<IpcResult<RecorderStatus>>;
+    onStatus(listener: (status: RecorderStatus) => void): () => void;
   };
   settings: {
     get(): Promise<IpcResult<AppSettings>>;

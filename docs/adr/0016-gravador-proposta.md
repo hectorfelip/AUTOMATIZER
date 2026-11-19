@@ -34,3 +34,15 @@ Rodar `scripts/spike-recorder.py` no Windows (deixa 10 s capturando e imprime ev
 
 ## Resultado do spike (Windows 10 build 19045, Python 3.14.8, executado pelo Hector)
 `pynput` instalou e capturou **49 eventos em 10 s** (cliques com posição, teclas pressionadas/soltas, rolagem). **Decisão:** `pynput`. O spike não mostra as teclas digitadas; a implementação também não as persiste fora da memória até a revisão.
+
+
+## Implementação (sob a diretriz `/goal`; spike validado no Windows)
+- **Processo separado** `automation-engine --record` (mesmo executável do motor; `engine/python/automation_engine/recorder.py`), com `pynput` (`requirements-recorder.txt`). **Sem mudança no protocolo do motor**: o gravador tem o próprio fluxo JSON Lines no stdout, lido só pelo Main.
+- **Privacidade (testada):** eventos só em **memória** do Main; nada em disco/log/histórico; stderr do gravador é descartado. **Modo senha** (`Ctrl+Alt+S`): o processo **nunca emite o caractere** (só "houve tecla"); o fluxo gerado usa `{{variables.senha}}` (variável vazia). Controles globais nunca são gravados: `Ctrl+Alt+R` para, `Ctrl+Alt+P` pausa, `Ctrl+Alt+S` senha. Testes: o texto digitado em modo senha não aparece em stdout, stderr, tela, banco de dados nem no fluxo.
+- **Indicador:** faixa vermelha sempre visível (janela `alwaysOnTop`, sem foco, que **não captura cliques**) enquanto grava; o app minimiza ao iniciar e restaura ao parar.
+- **Conversão:** digitação agrupada em um passo; duplo clique; atalhos (`input.hotkey`); Backspace apaga o caractere em vez de virar passo; pausas ≥ 1 s viram `flow.wait` (≤ 60 s); cliques viram `input.click` **por coordenada** (sem UIA — o nó "clicar em elemento UIA" **não existe**). Limites: 20 000 eventos, 500 passos.
+- **Revisão antes de criar:** tela com edição, remoção e reordenação dos passos; "Criar automação" valida o fluxo (erros impedem) e **nunca executa**; "Descartar" apaga tudo da memória.
+- **Só descarta o clique no botão do próprio app** (Pausar/Parar), recente e último; cliques reais em qualquer lugar da tela são mantidos (uma versão inicial filtrava por posição e engoliria cliques de quem grava em outro programa — corrigido).
+
+## Não verificado (precisa do Windows)
+Captura real de teclado/mouse **dentro do app** (o spike validou o `pynput`; o e2e usa uma fonte falsa de eventos); a **faixa vermelha, minimizar ao iniciar e restaurar ao parar** (essas operações nativas ficam desligadas no e2e: sem gerenciador de janelas elas travavam o processo principal); os atalhos globais com `pynput` + `canonical()` (letras com Ctrl pressionado); empacotar `pynput` no motor congelado.

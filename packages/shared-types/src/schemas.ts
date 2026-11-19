@@ -59,6 +59,19 @@ export const setScheduleEnabledSchema = z.strictObject({ id: idSchema, enabled: 
 export const pluginIdSchema = z.strictObject({ id: z.string().regex(/^[a-z][a-z0-9-]{1,39}$/) });
 export const pluginConfirmSchema = z.strictObject({ token: idSchema });
 export const setPluginEnabledSchema = z.strictObject({ id: z.string().regex(/^[a-z][a-z0-9-]{1,39}$/), enabled: z.boolean() });
+const intPx = z.number().int().min(0).max(100_000);
+const stepSchema = z.strictObject({
+  id: z.string().min(1).max(20),
+  kind: z.enum(["click", "type", "hotkey", "wait"]),
+  x: intPx.optional(),
+  y: intPx.optional(),
+  button: z.enum(["left", "right", "double"]).optional(),
+  text: z.string().max(5000).optional(),
+  sensitive: z.boolean().optional(),
+  keys: z.array(z.string().regex(/^[a-z0-9]{1,12}$/)).min(1).max(5).optional(),
+  seconds: z.number().min(0).max(3600).optional(),
+});
+export const createFromRecordingSchema = z.strictObject({ name: nameSchema, steps: z.array(stepSchema).max(500) });
 export const noInputSchema = z.undefined();
 
 // Trava de compilação: os tipos de entrada em ipc.ts precisam aceitar o que os schemas aceitam.

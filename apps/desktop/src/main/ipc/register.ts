@@ -4,6 +4,7 @@ import {
   automationIdSchema,
   cancelExecutionSchema,
   createAutomationSchema,
+  createFromRecordingSchema,
   createFromTemplateSchema,
   pluginConfirmSchema,
   pluginIdSchema,
@@ -26,12 +27,15 @@ import {
   renameAutomationSchema,
   settingsPatchSchema,
   startExecutionSchema,
+  type Automation,
+  type RecordedStep,
   type AppInfo,
   type EngineStatus,
   type IpcResult,
 } from "@automation-studio/shared-types";
 import type { AutomationService } from "../services/automations.js";
 import { AppError } from "../services/errors.js";
+import type { RecorderService } from "../services/recorder/recorder.js";
 import type { PluginService } from "../services/plugins.js";
 import type { ScheduleService } from "../services/scheduling/schedules.js";
 import type { ExchangeService } from "../services/exchange.js";
@@ -63,6 +67,9 @@ export interface IpcDeps {
   exchange: ExchangeService;
   schedules: ScheduleService;
   plugins: PluginService;
+  recorder: RecorderService;
+  /** Cria a automação a partir dos passos revisados (valida; nunca executa). */
+  createFromRecording: (name: string, steps: RecordedStep[]) => Automation;
   diagnostics: Diagnostics;
   templates: TemplatesService;
   appInfo: AppInfo;
@@ -180,6 +187,16 @@ export function registerIpc(ipc: IpcMainLike, deps: IpcDeps): void {
   route(IPC.pluginsImportConfirm, pluginConfirmSchema, (i) => deps.plugins.importConfirm(i.token));
   route(IPC.pluginsSetEnabled, setPluginEnabledSchema, (i) => deps.plugins.setEnabled(i.id, i.enabled));
   route(IPC.pluginsRemove, pluginIdSchema, (i) => deps.plugins.remove(i.id));
+  route(IPC.recorderStatus, noInputSchema, () => deps.recorder.status());
+  route(IPC.recorderStart, noInputSchema, () => deps.recorder.start());
+  route(IPC.recorderPause, noInputSchema, () => deps.recorder.pause());
+  route(IPC.recorderStop, noInputSchema, () => deps.recorder.stop());
+  route(IPC.recorderCreate, createFromRecordingSchema, (i) => {
+    const created = deps.createFromRecording(i.name, i.steps as RecordedStep[]);
+    deps.recorder.finish(); // a gravação inteira sai da memória assim que vira automação
+    return created;
+  });
+  route(IPC.recorderDiscard, noInputSchema, () => deps.recorder.finish());
   route(IPC.settingsGet, noInputSchema, () => settings.get());
   route(IPC.settingsUpdate, settingsPatchSchema, (p) => settings.update(p));
   route(IPC.appInfo, noInputSchema, () => deps.appInfo);

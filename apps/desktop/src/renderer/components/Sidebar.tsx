@@ -1,8 +1,9 @@
-export type Page = "dashboard" | "automations" | "plugins" | "schedules" | "history" | "settings";
+export type Page = "dashboard" | "automations" | "recorder" | "plugins" | "schedules" | "history" | "settings";
 
 const items: { page: Page; label: string }[] = [
   { page: "dashboard", label: "Dashboard" },
   { page: "automations", label: "Automações" },
+  { page: "recorder", label: "Gravador" },
   { page: "plugins", label: "Plugins" },
   { page: "schedules", label: "Agendamentos" },
   { page: "history", label: "Histórico" },

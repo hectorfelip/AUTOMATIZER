@@ -5,6 +5,8 @@ import { openDatabase } from "../database/db.js";
 import { createAutomationService } from "../services/automations.js";
 import { createDiagnostics } from "../services/diagnostics.js";
 import { createHistoryService } from "../services/history.js";
+import { createRecorderService } from "../services/recorder/recorder.js";
+import { createFromRecording } from "../services/recorder/create.js";
 import { createPluginService } from "../services/plugins.js";
 import { createScheduleService } from "../services/scheduling/schedules.js";
 import { createExchangeService } from "../services/exchange.js";
@@ -39,6 +41,8 @@ beforeEach(() => {
       appInfo: { version: "0.0.0", dataPath: "/x" },
       engine: { status: { state: "unavailable", reason: "teste" } },
       history,
+      recorder: createRecorderService({ spawn: () => { throw new Error("x"); }, supported: false, onStatus: () => undefined, ignoreRects: () => [] }),
+      createFromRecording: (n, st) => createFromRecording({ automations, workflows }, n, st),
       plugins: createPluginService(db, { io: { pickOpenPath: async () => null, statSize: () => 0, readText: () => "", baseName: (x) => x } }),
       schedules: createScheduleService(db, { tasks: { supported: false, upsert: async () => ({ ok: false, message: "x" }), remove: async () => ({ ok: true }) }, command: { file: "app" } }),
       exchange: createExchangeService({ automations, workflows, appVersion: "0", io: { pickSavePath: async () => null, pickOpenPath: async () => null, statSize: () => 0, readText: () => "", writeText: () => undefined, baseName: (p) => p } }),
@@ -87,6 +91,13 @@ describe("IPC", () => {
     ["plugin: confirmar com conteúdo (renderer não envia o plugin)", IPC.pluginsImportConfirm, [{ token: "t", text: "{}" }]],
     ["plugin: importar com caminho", IPC.pluginsImportPreview, [{ path: "/etc/passwd" }]],
     ["plugin: ativar sem booleano", IPC.pluginsSetEnabled, [{ id: "ok-id", enabled: 1 }]],
+    ["gravador: criar sem nome", IPC.recorderCreate, [{ steps: [] }]],
+    ["gravador: passo com campo extra", IPC.recorderCreate, [{ name: "G", steps: [{ id: "s1", kind: "click", x: 1, y: 1, cmd: "calc" }] }]],
+    ["gravador: tipo de passo desconhecido", IPC.recorderCreate, [{ name: "G", steps: [{ id: "s1", kind: "shell" }] }]],
+    ["gravador: coordenada negativa", IPC.recorderCreate, [{ name: "G", steps: [{ id: "s1", kind: "click", x: -1, y: 1 }] }]],
+    ["gravador: tecla com maiúscula/símbolo", IPC.recorderCreate, [{ name: "G", steps: [{ id: "s1", kind: "hotkey", keys: ["Ctrl+X"] }] }]],
+    ["gravador: texto gigante", IPC.recorderCreate, [{ name: "G", steps: [{ id: "s1", kind: "type", text: "x".repeat(5001) }] }]],
+    ["gravador: iniciar com argumentos", IPC.recorderStart, [{ path: "/x" }]],
     ["ativar sem booleano", IPC.schedulesSetEnabled, [{ id: "a", enabled: "sim" }]],
     ["tema inválido", IPC.settingsUpdate, [{ theme: "roxo" }]],
     ["captura não booleana", IPC.settingsUpdate, [{ captureDiagnostics: "sim" }]],
@@ -133,7 +144,7 @@ describe("IPC", () => {
         executions: {} as never,
         history: {} as never,
         exchange: {} as never,
-        schedules: {} as never, plugins: {} as never,
+        schedules: {} as never, plugins: {} as never, recorder: {} as never, createFromRecording: (() => ({})) as never,
         diagnostics: {} as never,
         templates: {} as never,
         isTrustedUrl: () => true,
@@ -224,7 +235,7 @@ describe("IPC", () => {
       { handle: (c, l) => void handlers.set(c, l) },
       {
         automations: {} as never, settings: {} as never, workflows: {} as never, appInfo: { version: "0", dataPath: "" }, engine: { status: { state: "starting" } },
-        executions: {} as never, history: {} as never, diagnostics: {} as never, templates: {} as never, schedules: {} as never, plugins: {} as never,
+        executions: {} as never, history: {} as never, diagnostics: {} as never, templates: {} as never, schedules: {} as never, plugins: {} as never, recorder: {} as never, createFromRecording: (() => ({})) as never,
         exchange: {
           importPreview: async () => {
             throw new AppError("VALIDATION", "arquivo ruim");

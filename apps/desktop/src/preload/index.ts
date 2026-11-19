@@ -69,6 +69,15 @@ const api: DesktopApi = {
     setEnabled: (input) => ipcRenderer.invoke(IPC.pluginsSetEnabled, input),
     remove: (input) => ipcRenderer.invoke(IPC.pluginsRemove, input),
   },
+  recorder: {
+    status: () => ipcRenderer.invoke(IPC.recorderStatus),
+    start: () => ipcRenderer.invoke(IPC.recorderStart),
+    pause: () => ipcRenderer.invoke(IPC.recorderPause),
+    stop: () => ipcRenderer.invoke(IPC.recorderStop),
+    create: (input) => ipcRenderer.invoke(IPC.recorderCreate, input),
+    discard: () => ipcRenderer.invoke(IPC.recorderDiscard),
+    onStatus: subscribe(PUSH.recorderStatus),
+  },
   settings: {
     get: () => ipcRenderer.invoke(IPC.settingsGet),
     update: (patch) => ipcRenderer.invoke(IPC.settingsUpdate, patch),

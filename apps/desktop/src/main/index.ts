@@ -1,5 +1,5 @@
 import { app, BrowserWindow, desktopCapturer, dialog, ipcMain, screen } from "electron";
-import { execFile } from "node:child_process";
+import { execFile, spawn as spawnProcess } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
@@ -11,6 +11,8 @@ import { EngineClient } from "./services/engine/client.js";
 import { resolveEngineLaunch } from "./services/engine/launch.js";
 import { createDiagnostics } from "./services/diagnostics.js";
 import { createHistoryService } from "./services/history.js";
+import { createRecorderService } from "./services/recorder/recorder.js";
+import { createFromRecording } from "./services/recorder/create.js";
 import { createPluginService } from "./services/plugins.js";
 import { createScheduleService } from "./services/scheduling/schedules.js";
 import { createTaskScheduler } from "./services/scheduling/taskScheduler.js";
@@ -46,8 +48,16 @@ if (!app.requestSingleInstanceLock()) {
     }
 
     const broadcast = (channel: string, data: unknown) => {
-      for (const w of BrowserWindow.getAllWindows())
-        if (!w.isDestroyed()) w.webContents.send(channel, data);
+      for (const w of BrowserWindow.getAllWindows()) {
+        if (w.isDestroyed()) continue;
+        // a faixa do gravador (página data:) nunca recebe eventos do app; e o envio a uma janela ruim não pode impedir as demais
+        if (w.webContents.getURL().startsWith("data:")) continue;
+        try {
+          w.webContents.send(channel, data);
+        } catch (err) {
+          console.error("[broadcast]", err);
+        }
+      }
     };
     const engine = new EngineClient({
       launch: () =>
@@ -170,9 +180,63 @@ if (!app.requestSingleInstanceLock()) {
       recordSkipped: (id, why) => schedules.recordRun(id, why),
       log: (m) => console.warn(`[agendamento] ${m}`),
     });
+    // Gravador (ADR 0016): processo separado `--record`; indicador SEMPRE visível enquanto grava; eventos só em memória.
+    let indicator: BrowserWindow | null = null;
+    let indicatorText = "";
+    const showIndicator = (text: string) => {
+      if (text === indicatorText && indicator && !indicator.isDestroyed()) return; // só recarrega quando o texto muda (não a cada evento capturado)
+      indicatorText = text;
+      const html = `<body style="margin:0;font:600 13px Segoe UI,sans-serif;color:#fff;background:#b00020;display:flex;align-items:center;justify-content:center;height:100vh;text-align:center;padding:0 8px;-webkit-user-select:none"><span id="t"></span><script>document.getElementById("t").textContent=${JSON.stringify(text)}</script></body>`;
+      if (!indicator || indicator.isDestroyed()) {
+        const { width } = screen.getPrimaryDisplay().workAreaSize;
+        indicator = new BrowserWindow({ width: 430, height: 44, x: Math.round(width / 2 - 215), y: 8, frame: false, resizable: false, focusable: false, skipTaskbar: true, alwaysOnTop: true, show: false, hasShadow: false, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } });
+        indicator.setAlwaysOnTop(true, "screen-saver");
+        indicator.setIgnoreMouseEvents(true); // nunca intercepta cliques (nem entram na gravação)
+        indicator.webContents.on("will-navigate", (e) => e.preventDefault());
+        indicator.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+      }
+      indicator
+        .loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`)
+        .then(() => indicator?.showInactive())
+        .catch(() => undefined); // recarga interrompida por outra (ERR_ABORTED) ou janela já destruída: sem problema
+    };
+    const hideIndicator = () => {
+      if (indicator && !indicator.isDestroyed()) indicator.destroy();
+      indicator = null;
+      indicatorText = "";
+    };
+    const mainWin = () => BrowserWindow.getAllWindows().find((w) => w !== indicator && !w.isDestroyed());
+    // Operações nativas de janela (minimizar/restaurar/faixa) dependem de um gerenciador de janelas; no e2e (xvfb, sem WM) podem travar o Main.
+    const nativeWindowOps = process.env["AUTOMATION_ENGINE_TEST_ACTIONS"] !== "1";
+    let wasRecording = false;
+    const recorder = createRecorderService({
+      // só Windows grava de verdade; nos testes de e2e a fonte falsa de eventos (AUTOMATION_RECORDER_FAKE) também libera
+      supported: process.platform === "win32" || process.env["AUTOMATION_ENGINE_TEST_ACTIONS"] === "1",
+      spawn: () => {
+        const l = resolveEngineLaunch({ platform: process.platform, env: process.env, isPackaged: app.isPackaged, resourcesPath: process.resourcesPath, repoRoot: resolve(__dirname, "..", "..", "..", "..") });
+        const extra = process.env["AUTOMATION_RECORDER_FAKE"] ? { AUTOMATION_RECORDER_FAKE: process.env["AUTOMATION_RECORDER_FAKE"] } : {};
+        return spawnProcess(l.command, [...l.args, "--record"], { cwd: l.cwd, env: { ...process.env, ...(l.env ?? {}), ...extra }, stdio: ["pipe", "pipe", "pipe"], windowsHide: true });
+      },
+      // só janelas VISÍVEIS (a do app fica minimizada gravando; minimizada, seus bounds ainda cobririam a tela e engoliriam cliques reais)
+      ignoreRects: () => [indicator, mainWin()].flatMap((w) => (w && !w.isDestroyed() && w.isVisible() && !w.isMinimized() ? [w.getBounds()] : [])),
+      onStatus: (s) => {
+        broadcast(PUSH.recorderStatus, s);
+        if (nativeWindowOps && s.state === "recording" && !wasRecording) mainWin()?.minimize(); // sai da frente para o usuário gravar em outros apps
+        wasRecording = s.state === "recording";
+        if (!nativeWindowOps) return;
+        if (s.state === "recording") showIndicator(s.paused ? "⏸ GRAVAÇÃO PAUSADA — Ctrl+Alt+P retoma · Ctrl+Alt+R para" : s.secret ? "● GRAVANDO · MODO SENHA (teclas não são gravadas) — Ctrl+Alt+S sai" : "● GRAVANDO — Ctrl+Alt+R para · Ctrl+Alt+P pausa · Ctrl+Alt+S senha");
+        else {
+          hideIndicator();
+          const w = mainWin();
+          if (w && w.isMinimized()) w.restore(); // ao parar (inclusive pelo atalho global) o app volta para a revisão
+        }
+      },
+    });
     const plugins = createPluginService(db, { io: exchangeIo });
     plugins.apply(); // nós dos plugins ativos disponíveis desde o início (o interpretador os usa)
     registerIpc(ipcMain, {
+      recorder,
+      createFromRecording: (name, steps) => createFromRecording({ automations, workflows }, name, steps),
       plugins,
       schedules,
       exchange,
@@ -204,6 +268,8 @@ if (!app.requestSingleInstanceLock()) {
       if (closing) return;
       closing = true;
       event.preventDefault();
+      recorder.finish(); // mata o processo gravador e apaga a gravação da memória
+      hideIndicator(); // a faixa não pode segurar o app aberto
       void executions
         .shutdown()
         .then(() => engine.stop())

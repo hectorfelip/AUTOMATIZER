@@ -174,17 +174,17 @@ Só inicia após a Fase 6a aceita; não bloqueia o MVP.
 ## Fase 7 — Gravador e automação web
 
 ### Tarefas
-- [ ] Prototipar captura de mouse e teclado.
-- [ ] Implementar indicador visual de gravação.
-- [ ] Implementar pausa e parada.
-- [ ] Converter gravação em nós editáveis.
-- [ ] Excluir ou mascarar campos sensíveis.
+- [x] Prototipar captura de mouse e teclado. *(spike validado no Windows (49 eventos))*
+- [x] Implementar indicador visual de gravação. *(faixa sempre visível; **não verificada no Windows**)*
+- [x] Implementar pausa e parada. *(atalhos globais + botões; **atalhos não verificados no Windows**)*
+- [x] Converter gravação em nós editáveis. *(revisão com edição/remoção/reordenação)*
+- [x] Excluir ou mascarar campos sensíveis. *(modo senha: o caractere nunca sai do processo; testado)*
 - [x] Integrar Playwright. *(motor; **empacotamento e Edge/Chrome no Windows não verificados**)*
 - [x] Criar nós para navegação, clique, preenchimento e extração.
 - [x] Implementar espera por elementos.
 - [x] Criar testes em páginas de demonstração.
 
-> Gravador (itens 1–5): **não iniciado** — depende de protótipo em Windows real. Ver ADR 0012.
+> Gravador: **implementado** (ADR 0016); captura real dentro do app, faixa vermelha, minimizar/restaurar e atalhos globais **ainda não verificados no Windows**. Sem clique por elemento UIA.
 
 ### Critérios de aceite
 - Gravação pode ser revisada antes de virar fluxo.

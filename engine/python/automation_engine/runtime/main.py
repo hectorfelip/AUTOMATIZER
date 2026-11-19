@@ -28,6 +28,10 @@ def _selftest() -> int:
 def main(argv: Optional[Sequence[str]] = None) -> int:
     if argv and "--selftest" in argv:
         return _selftest()
+    if argv and "--record" in argv:  # gravador: processo separado, protocolo próprio (ADR 0016)
+        from .. import recorder
+
+        return recorder.main()
     # stdout é do protocolo: guardamos o canal binário e apontamos `sys.stdout` para stderr,
     # assim qualquer print() (nosso ou de bibliotecas) vira diagnóstico, não protocolo.
     protocol_out = sys.stdout.buffer
