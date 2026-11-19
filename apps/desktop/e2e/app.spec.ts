@@ -101,12 +101,13 @@ test("renderer não tem acesso a Node e a API exposta é mínima", async () => {
   const csp = await page.locator('meta[http-equiv="Content-Security-Policy"]').getAttribute("content");
   expect(csp).toContain("script-src 'self'");
   expect(csp).not.toContain("unsafe-eval");
-  expect(probe.api).toEqual(["app", "automations", "engine", "executions", "settings", "templates", "workflows"]);
+  expect(probe.api).toEqual(["app", "automations", "engine", "executions", "history", "settings", "templates", "workflows"]);
   expect(probe.apiMethods["automations"]).toEqual(["archive", "create", "delete", "list", "rename", "restore"]);
   expect(probe.apiMethods["workflows"]).toEqual(["load", "save"]);
   expect(probe.apiMethods["templates"]).toEqual(["createAutomation", "list"]);
   expect(probe.apiMethods["engine"]).toEqual(["onStatusChange", "status"]);
-  expect(probe.apiMethods["executions"]).toEqual(["cancel", "onEvent", "start"]);
+  expect(probe.apiMethods["executions"]).toEqual(["cancel", "onEvent", "pause", "resume", "setBreakpoints", "start", "step"]);
+  expect(probe.apiMethods["history"]).toEqual(["clear", "diagnostic", "get", "list", "stats"]);
 
   const prefs = await app.evaluate(({ BrowserWindow }) => {
     // getLastWebPreferences existe em runtime, mas não consta nos tipos públicos do Electron.

@@ -1,6 +1,6 @@
 # ADR 0008 — "Para cada item" e resultado dos nós nas expressões (Fase 4, etapa 2)
 
-**Status:** proposta — aguardando validação no Windows e aval do Hector (itens ⚠️ ampliam o escopo)
+**Status:** aceita (aprovada pelo Hector). Validação no Windows das ações de janela/teclado/mouse: ainda não confirmada
 
 ## Contexto
 O critério da Fase 4 ("uma automação útil de organização de arquivos") exige tratar **cada** arquivo de uma lista, e o roadmap não prevê isso. O Hector escolheu (ADR 0007) entregar o filtro com curinga primeiro e, depois, "Para cada item" + resultado dos nós. Esta etapa substitui a decisão 5 do ADR 0005 ("expressões: só `{{variables.nome}}`").

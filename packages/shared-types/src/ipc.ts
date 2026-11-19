@@ -5,7 +5,8 @@
 
 import type { WorkflowDocument } from "@automation-studio/workflow-schema";
 import type { EngineStatus } from "./engine.js";
-import type { ExecutionEvent, StartExecutionResult } from "./execution.js";
+import type { ExecutionEvent, StartExecutionOptions, StartExecutionResult } from "./execution.js";
+import type { ClearHistoryInput, ExecutionDetail, HistoryFilters, HistoryPage, HistoryStats } from "./history.js";
 
 // ---- Entidades ----
 export type AutomationStatus = "active" | "archived";
@@ -24,6 +25,8 @@ export type Theme = (typeof THEMES)[number];
 
 export interface AppSettings {
   theme: Theme;
+  /** Captura a tela quando um nó falha (desligado por padrão; fica só neste computador). */
+  captureDiagnostics: boolean;
 }
 
 export interface TemplateInfo {
@@ -76,13 +79,34 @@ export interface CreateFromTemplateInput {
   name?: string;
 }
 export interface StartExecutionInput {
+  /** A automação a que o histórico desta execução pertence. */
+  automationId: string;
   document: WorkflowDocument;
+  options?: StartExecutionOptions;
 }
 export interface CancelExecutionInput {
   executionId: string;
 }
+/** Pausar, continuar, próximo passo. */
+export type ControlExecutionInput = CancelExecutionInput;
+export interface SetBreakpointsInput {
+  executionId: string;
+  nodeIds: string[];
+}
 export interface SettingsPatch {
   theme?: Theme;
+  captureDiagnostics?: boolean;
+}
+export interface HistoryGetInput {
+  executionId: string;
+}
+export interface HistoryStatsInput {
+  /** Só execuções dos últimos N dias. */
+  sinceDays?: number;
+}
+export interface HistoryDiagnosticInput {
+  executionId: string;
+  seq: number;
 }
 
 // ---- Resultado ----
@@ -104,8 +128,17 @@ export const IPC = {
   engineStatus: "engine:status",
   executionsStart: "executions:start",
   executionsCancel: "executions:cancel",
+  executionsPause: "executions:pause",
+  executionsResume: "executions:resume",
+  executionsStep: "executions:step",
+  executionsBreakpoints: "executions:breakpoints",
   templatesList: "templates:list",
   templatesCreate: "templates:create",
+  historyList: "history:list",
+  historyGet: "history:get",
+  historyStats: "history:stats",
+  historyClear: "history:clear",
+  historyDiagnostic: "history:diagnostic",
   settingsGet: "settings:get",
   settingsUpdate: "settings:update",
   appInfo: "app:info",
@@ -144,7 +177,21 @@ export interface DesktopApi {
   executions: {
     start(input: StartExecutionInput): Promise<IpcResult<StartExecutionResult>>;
     cancel(input: CancelExecutionInput): Promise<IpcResult<null>>;
+    /** Cooperativo: vale no próximo limite entre nós (a ação em andamento termina antes). */
+    pause(input: ControlExecutionInput): Promise<IpcResult<null>>;
+    resume(input: ControlExecutionInput): Promise<IpcResult<null>>;
+    /** Executa um nó e pausa de novo. */
+    step(input: ControlExecutionInput): Promise<IpcResult<null>>;
+    setBreakpoints(input: SetBreakpointsInput): Promise<IpcResult<null>>;
     onEvent(listener: (event: ExecutionEvent) => void): () => void;
+  };
+  history: {
+    list(filters: HistoryFilters): Promise<IpcResult<HistoryPage>>;
+    get(input: HistoryGetInput): Promise<IpcResult<ExecutionDetail>>;
+    stats(input: HistoryStatsInput): Promise<IpcResult<HistoryStats>>;
+    clear(input: ClearHistoryInput): Promise<IpcResult<{ deleted: number }>>;
+    /** Captura de tela de uma entrada de log, como data URL (PNG). */
+    diagnostic(input: HistoryDiagnosticInput): Promise<IpcResult<string>>;
   };
   settings: {
     get(): Promise<IpcResult<AppSettings>>;

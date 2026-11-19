@@ -56,6 +56,18 @@ export function createWorkflowService(db: DatabaseSync, now: () => string = () =
       return { document: normalize(parsed.doc, a), version: a.current_version };
     },
 
+    /** A versão salva atual, se o fluxo for idêntico a ela (o nome não conta). Usado para ligar uma execução à versão. */
+    matchingVersion(automationId: string, doc: WorkflowDocument): { id: number; number: number } | null {
+      const a = automation(automationId);
+      if (a.current_version === 0) return null;
+      const row = db
+        .prepare("SELECT id, version_number, definition_json FROM workflow_versions WHERE automation_id = ? AND version_number = ?")
+        .get(a.id, a.current_version) as { id: number; version_number: number; definition_json: string } | undefined;
+      return row && sameContent(row.definition_json, normalize(doc, a)) ? { id: row.id, number: row.version_number } : null;
+    },
+
+    automationExists: (automationId: string): boolean => db.prepare("SELECT 1 FROM automations WHERE id = ?").get(automationId) !== undefined,
+
     save(automationId: string, input: unknown): WorkflowSaveResult {
       const a = automation(automationId);
       const parsed = parseWorkflowDocument(input);

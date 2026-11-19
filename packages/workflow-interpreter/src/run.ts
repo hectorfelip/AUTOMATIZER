@@ -1,6 +1,8 @@
 import { getNodeDefinition, type NodeDefinition } from "@automation-studio/node-registry";
 import type {
   ActionOutcome,
+  ContextSnapshot,
+  ExecutionMode,
   ActionProgress,
   ActionRequest,
   ExecutionError,
@@ -11,7 +13,9 @@ import type { WorkflowDocument, WorkflowNode } from "@automation-studio/workflow
 import { hasErrors, validateWorkflow } from "@automation-studio/workflow-validator";
 import { VARIABLE_NAME_PATTERN } from "@automation-studio/workflow-schema";
 import { coerceToDeclared, evaluateCondition, OPERATOR_LABELS } from "./control.js";
-import { createContext, resolveConfig, resolveItems } from "./resolve.js";
+import { createContext, resolveConfig, resolveItems, type Scalar } from "./resolve.js";
+import { Deadline, type RunControl } from "./run-control.js";
+import { buildSnapshot } from "./snapshot.js";
 
 export interface ActionExecutor {
   /** Executa uma ação. Deve resolver (nunca rejeitar) e respeitar `signal` para cancelar. */
@@ -26,6 +30,15 @@ export interface RunOptions {
   signal?: AbortSignal;
   now?: () => Date;
   maxSteps?: number;
+  /** Pausa, passo a passo e breakpoints. */
+  control?: RunControl;
+  /** Começa neste nó (em vez de no início manual). */
+  startAt?: string;
+  /** Valores iniciais das variáveis (sobrepõem os do fluxo). */
+  variables?: Record<string, Scalar>;
+  mode?: ExecutionMode;
+  /** Sobrescreve o timeout do fluxo (testes). */
+  timeoutMs?: number;
 }
 
 export interface RunResult {
@@ -38,6 +51,13 @@ export interface RunResult {
 export const DEFAULT_MAX_STEPS = 1_000_000;
 
 /**
+ * Erros de AÇÃO podem ser ignorados na política "continuar". Nunca os de infraestrutura (motor, timeout)
+ * nem os de configuração/bug: continuar neles só repetiria o problema ou esconderia um defeito.
+ */
+const NEVER_CONTINUE = new Set(["ENGINE_CRASHED", "ENGINE_UNAVAILABLE", "TIMEOUT", "INTERNAL_ERROR", "INVALID_CONFIG", "INVALID_ACTION_RESULT", "LOOP_LIMIT", "INVALID_WORKFLOW"]);
+export const isContinuable = (code: string): boolean => !NEVER_CONTINUE.has(code);
+
+/**
  * Percorre o grafo a partir do início, executa os nós e segue a porta de saída indicada pelo resultado.
  * Cada chamada tem seu próprio contexto (variáveis, nó atual, relógio); nada é compartilhado entre execuções.
  */
@@ -48,12 +68,37 @@ export async function runWorkflow(doc: WorkflowDocument, opts: RunOptions): Prom
   const at = () => now().toISOString();
   const emit = (e: ExecutionEvent) => onEvent(e);
 
-  emit({ type: "execution_started", executionId, at: at(), workflowName: doc.name, nodeCount: doc.nodes.length });
+  emit({
+    type: "execution_started",
+    executionId,
+    at: at(),
+    workflowName: doc.name,
+    nodeCount: doc.nodes.length,
+    mode: opts.mode ?? (opts.startAt ? "from" : opts.control ? "step" : "run"),
+    ...(opts.startAt ? { startNodeId: opts.startAt } : {}),
+  });
 
-  const finish = (status: ExecutionStatus, error?: ExecutionError, message?: string): RunResult => {
+  let warnings = 0;
+  let deadline: Deadline | null = null;
+  let snapshotNow: (() => ContextSnapshot) | null = null;
+  const finish = (status: ExecutionStatus, error?: ExecutionError, message?: string, failedNodeId?: string): RunResult => {
+    deadline?.dispose();
     const durationMs = now().getTime() - startedAt;
-    emit({ type: "execution_finished", executionId, at: at(), status, durationMs, ...(error ? { error } : {}), ...(message ? { message } : {}) });
-    return { status, durationMs, ...(error ? { error } : {}) };
+    const final: ExecutionStatus = status === "completed" && warnings > 0 ? "completed_with_warnings" : status;
+    const note = final === "completed_with_warnings" ? `${warnings} nó(s) falharam e foram ignorados.${message ? ` ${message}` : ""}` : message;
+    emit({
+      type: "execution_finished",
+      executionId,
+      at: at(),
+      status: final,
+      durationMs,
+      ...(error ? { error } : {}),
+      ...(note ? { message: note } : {}),
+      ...(failedNodeId ? { failedNodeId } : {}),
+      ...(warnings ? { warnings } : {}),
+      ...(snapshotNow ? { snapshot: snapshotNow() } : {}),
+    });
+    return { status: final, durationMs, ...(error ? { error } : {}) };
   };
 
   // ---- 1. validação (o interpretador nunca executa um fluxo inválido) ----
@@ -67,9 +112,9 @@ export async function runWorkflow(doc: WorkflowDocument, opts: RunOptions): Prom
   }
 
   // ---- 2. cancelamento e timeout global ----
-  const timeoutMs = doc.settings.timeoutSeconds * 1000;
-  const timeoutSignal = AbortSignal.timeout(timeoutMs);
-  const signal = opts.signal ? AbortSignal.any([opts.signal, timeoutSignal]) : timeoutSignal;
+  deadline = new Deadline(opts.timeoutMs ?? doc.settings.timeoutSeconds * 1000);
+  const dl = deadline;
+  const signal = opts.signal ? AbortSignal.any([opts.signal, dl.controller.signal]) : dl.controller.signal;
   const interrupted = (): RunResult | null => {
     if (!signal.aborted) return null;
     if (opts.signal?.aborted) return finish("cancelled", undefined, "Execução cancelada.");
@@ -81,6 +126,12 @@ export async function runWorkflow(doc: WorkflowDocument, opts: RunOptions): Prom
   const next = new Map<string, string>(doc.edges.map((e) => [`${e.source}:${e.sourceHandle}`, e.target]));
   const ctx = createContext(doc);
   const variables = ctx.variables; // atalho: Definir variável altera o contexto desta execução
+  snapshotNow = () => buildSnapshot(ctx);
+  for (const [name, raw] of Object.entries(opts.variables ?? {})) {
+    const coerced = coerceToDeclared(name, raw, doc.variables[name]?.type);
+    if (!coerced.ok) return finish("failed", { code: "INVALID_CONFIG", message: `Valor inicial inválido: ${coerced.message}` });
+    variables[name] = coerced.value;
+  }
   const maxSteps = opts.maxSteps ?? DEFAULT_MAX_STEPS;
   const repeatCounters = new Map<string, number>(); // voltas já dadas por nó "Repetir" (isolado por execução)
 
@@ -155,12 +206,33 @@ export async function runWorkflow(doc: WorkflowDocument, opts: RunOptions): Prom
     return { kind: "completed", outputs: { index, count }, next: "body", message: `Item ${index} de ${count}.` };
   };
 
-  let current: string | undefined = doc.nodes.find((n) => n.type === "trigger.manual")!.id;
+  if (opts.startAt !== undefined && !nodes.has(opts.startAt)) {
+    return finish("failed", { code: "INVALID_WORKFLOW", message: "O nó escolhido para começar não existe neste fluxo." });
+  }
+  let current: string | undefined = opts.startAt ?? doc.nodes.find((n) => n.type === "trigger.manual")!.id;
+  if (opts.control) {
+    opts.control.onPauseRequested = () => emit({ type: "execution_pause_requested", executionId, at: at(), nodeId: current ?? null });
+  }
   for (let steps = 0; current !== undefined; steps++) {
     const stop = interrupted();
     if (stop) return stop;
     if (steps >= maxSteps) {
       return finish("failed", { code: "LOOP_LIMIT", message: `O fluxo executou mais de ${maxSteps} passos. Verifique se há um loop sem saída.` });
+    }
+    if (opts.control) {
+      const at0 = current;
+      await opts.control.gate(at0, signal, {
+        paused: (reason) => {
+          dl.pause(); // o tempo parado não conta para o timeout
+          emit({ type: "execution_paused", executionId, at: at(), nodeId: at0, label: getNodeDefinition(nodes.get(at0)!.type)?.label ?? at0, reason, snapshot: buildSnapshot(ctx) });
+        },
+        resumed: () => {
+          dl.resume();
+          emit({ type: "execution_resumed", executionId, at: at() });
+        },
+      });
+      const stopped = interrupted(); // cancelado enquanto pausado
+      if (stopped) return stopped;
     }
 
     const node: WorkflowNode = nodes.get(current)!;
@@ -212,18 +284,30 @@ export async function runWorkflow(doc: WorkflowDocument, opts: RunOptions): Prom
       if (port !== null && !outs.includes(port)) {
         const error = { code: "INVALID_ACTION_RESULT", message: `${def.label}: a ação indicou uma saída inexistente (“${port}”).` };
         emit({ type: "node_failed", executionId, at: at(), nodeId: node.id, error });
-        return finish("failed", error);
+        return finish("failed", error, undefined, node.id);
       }
       emit({ type: "node_completed", executionId, at: at(), nodeId: node.id, port, ...(outcome.message ? { message: outcome.message } : {}) });
       current = port === null ? undefined : next.get(`${node.id}:${port}`);
       continue;
     }
 
-    // falhou: segue o caminho de erro se o fluxo previu um; senão, para (política "stop")
-    emit({ type: "node_failed", executionId, at: at(), nodeId: node.id, error: outcome.error });
+    // falhou: (1) segue a saída "Erro" se o fluxo previu uma; (2) na política "continuar", segue pela saída normal
+    // e a execução termina "com avisos"; (3) senão, para.
     const handler = outs.includes("error") ? next.get(`${node.id}:error`) : undefined;
-    if (handler === undefined) return finish("failed", { ...outcome.error, message: `${def.label}: ${outcome.error.message}` });
-    current = handler;
+    if (handler !== undefined) {
+      emit({ type: "node_failed", executionId, at: at(), nodeId: node.id, error: outcome.error, handled: "error_branch" });
+      current = handler;
+      continue;
+    }
+    const normal = outs.includes("success") ? "success" : outs.includes("next") ? "next" : null;
+    if (doc.settings.errorPolicy === "continue" && normal !== null && isContinuable(outcome.error.code)) {
+      warnings++;
+      emit({ type: "node_failed", executionId, at: at(), nodeId: node.id, error: outcome.error, handled: "continued" });
+      current = next.get(`${node.id}:${normal}`);
+      continue;
+    }
+    emit({ type: "node_failed", executionId, at: at(), nodeId: node.id, error: outcome.error });
+    return finish("failed", { ...outcome.error, message: `${def.label}: ${outcome.error.message}` }, undefined, node.id);
   }
 
   // a saída seguida não tem conexão: o fluxo termina ali (fim implícito)

@@ -22,7 +22,7 @@ test("executa um fluxo e os eventos aparecem na interface em tempo real", async 
   await waitEngineReady(page);
   await openEditor(page, "Fluxo run");
 
-  await page.getByRole("button", { name: "Executar" }).click();
+  await page.getByRole("button", { name: "Executar", exact: true }).click();
   await expect(runStatus(page)).toContainText("Executando");
   const wait = page.getByTestId("run-row-w");
   await expect(wait).toContainText("Executando…");
@@ -34,7 +34,7 @@ test("executa um fluxo e os eventos aparecem na interface em tempo real", async 
   await expect(wait).toContainText("Aguardou 2s.");
   await expect(page.getByTestId("run-row-start")).toContainText("Concluído");
   await expect(page.getByTestId("run-row-end")).toContainText("Pronto");
-  await expect(page.getByRole("button", { name: "Executar" })).toBeEnabled(); // pode rodar de novo
+  await expect(page.getByRole("button", { name: "Executar", exact: true })).toBeEnabled(); // pode rodar de novo
   await closeApp(app);
 });
 
@@ -44,7 +44,7 @@ test("cancelar interrompe a espera rapidamente e o motor continua utilizável", 
   await waitEngineReady(page);
   await openEditor(page, "Fluxo cancel");
 
-  await page.getByRole("button", { name: "Executar" }).click();
+  await page.getByRole("button", { name: "Executar", exact: true }).click();
   await expect(page.getByTestId("run-row-w")).toContainText("Executando…");
   const t0 = Date.now();
   await page.getByRole("button", { name: "Cancelar" }).click();
@@ -53,7 +53,7 @@ test("cancelar interrompe a espera rapidamente e o motor continua utilizável", 
 
   // não ficou em estado inconsistente: o Dashboard segue "Disponível" e dá para executar de novo
   await page.getByRole("button", { name: "Limpar" }).click();
-  await page.getByRole("button", { name: "Executar" }).click();
+  await page.getByRole("button", { name: "Executar", exact: true }).click();
   await expect(page.getByTestId("run-row-w")).toContainText("Executando…");
   await page.getByRole("button", { name: "Cancelar" }).click();
   await expect(runStatus(page)).toContainText("Execução cancelada", { timeout: 5000 });
@@ -68,7 +68,7 @@ test("motor indisponível: o app abre, explica o motivo e bloqueia a execução"
 
   await seedWaitFlow(page, "Fluxo sem motor", 1); // o resto do app funciona normalmente
   await openEditor(page, "Fluxo sem motor");
-  const run = page.getByRole("button", { name: "Executar" });
+  const run = page.getByRole("button", { name: "Executar", exact: true });
   await expect(run).toBeDisabled();
   await expect(run).toHaveAttribute("title", /Indisponível|indisponível/);
 
@@ -77,7 +77,7 @@ test("motor indisponível: o app abre, explica o motivo e bloqueia a execução"
     const list = await window.api.automations.list();
     const id = list.ok ? list.data[0]!.id : "";
     const doc = await window.api.workflows.load({ automationId: id });
-    return window.api.executions.start({ document: doc.ok ? doc.data.document : (undefined as never) });
+    return window.api.executions.start({ automationId: id, document: doc.ok ? doc.data.document : (undefined as never) });
   });
   expect(res).toMatchObject({ ok: false, error: { code: "ENGINE_UNAVAILABLE" } });
   await closeApp(app);
@@ -89,7 +89,7 @@ test("queda do motor durante a execução: erro claro, o app não cai e o motor 
   await seedWaitFlow(page, "Fluxo crash", 60);
   await waitEngineReady(page);
   await openEditor(page, "Fluxo crash");
-  await page.getByRole("button", { name: "Executar" }).click();
+  await page.getByRole("button", { name: "Executar", exact: true }).click();
   await expect(page.getByTestId("run-row-w")).toContainText("Executando…");
 
   process.kill(await enginePid(app), "SIGKILL"); // derruba o motor de verdade
@@ -100,9 +100,9 @@ test("queda do motor durante a execução: erro claro, o app não cai e o motor 
   await expect(page.getByRole("heading", { name: "Fluxo crash" })).toBeVisible(); // o app segue de pé
 
   // o motor reinicia sozinho e uma nova execução funciona
-  await expect(page.getByRole("button", { name: "Executar" })).toBeEnabled({ timeout: 15_000 });
+  await expect(page.getByRole("button", { name: "Executar", exact: true })).toBeEnabled({ timeout: 15_000 });
   await page.getByRole("button", { name: "Limpar" }).click();
-  await page.getByRole("button", { name: "Executar" }).click();
+  await page.getByRole("button", { name: "Executar", exact: true }).click();
   await expect(page.getByTestId("run-row-w")).toContainText("Executando…");
   await page.getByRole("button", { name: "Cancelar" }).click();
   await expect(runStatus(page)).toContainText("Execução cancelada", { timeout: 5000 });
@@ -127,7 +127,7 @@ test("o Electron inicia o motor EMPACOTADO (executável congelado), sem Python n
   await expect(page.getByTestId("engine-status")).toContainText("Disponível", { timeout: 15_000 });
   await seedWaitFlow(page, "Fluxo empacotado", 1);
   await openEditor(page, "Fluxo empacotado");
-  await page.getByRole("button", { name: "Executar" }).click();
+  await page.getByRole("button", { name: "Executar", exact: true }).click();
   await expect(runStatus(page)).toContainText("Execução concluída", { timeout: 10_000 });
   await closeApp(app);
 });

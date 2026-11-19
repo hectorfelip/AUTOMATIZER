@@ -1,8 +1,9 @@
-export type Page = "dashboard" | "automations" | "settings";
+export type Page = "dashboard" | "automations" | "history" | "settings";
 
 const items: { page: Page; label: string }[] = [
   { page: "dashboard", label: "Dashboard" },
   { page: "automations", label: "Automações" },
+  { page: "history", label: "Histórico" },
   { page: "settings", label: "Configurações" },
 ];
 

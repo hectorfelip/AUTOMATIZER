@@ -1,10 +1,12 @@
-import { app, BrowserWindow, ipcMain } from "electron";
+import { app, BrowserWindow, desktopCapturer, ipcMain, screen } from "electron";
 import { join, resolve } from "node:path";
 import { PUSH } from "@automation-studio/shared-types";
 import { openDatabase } from "./database/db.js";
 import { registerIpc } from "./ipc/register.js";
 import { EngineClient } from "./services/engine/client.js";
 import { resolveEngineLaunch } from "./services/engine/launch.js";
+import { createDiagnostics } from "./services/diagnostics.js";
+import { createHistoryService } from "./services/history.js";
 import { createExecutionManager } from "./services/executions.js";
 import { createAutomationService } from "./services/automations.js";
 import { createTemplatesService } from "./services/templates.js";
@@ -20,10 +22,13 @@ if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
   void app.whenReady().then(() => {
-    const db = openDatabase(join(app.getPath("userData"), "automation-studio.db"));
+    const db = openDatabase(
+      join(app.getPath("userData"), "automation-studio.db"),
+    );
 
     const broadcast = (channel: string, data: unknown) => {
-      for (const w of BrowserWindow.getAllWindows()) if (!w.isDestroyed()) w.webContents.send(channel, data);
+      for (const w of BrowserWindow.getAllWindows())
+        if (!w.isDestroyed()) w.webContents.send(channel, data);
     };
     const engine = new EngineClient({
       launch: () =>
@@ -35,19 +40,46 @@ if (!app.requestSingleInstanceLock()) {
           // o bundle fica em apps/desktop/out/main (no dev e no e2e); app.getAppPath() varia conforme o modo de início
           repoRoot: resolve(__dirname, "..", "..", "..", ".."),
         }),
-      log: (level, message) => console[level === "debug" ? "log" : level](`[engine] ${message}`),
+      log: (level, message) =>
+        console[level === "debug" ? "log" : level](`[engine] ${message}`),
     });
     engine.on("status", (status) => broadcast(PUSH.engineStatus, status));
-    const executions = createExecutionManager({ engine, emit: (event) => broadcast(PUSH.executionEvent, event) });
-
     const automations = createAutomationService(db);
     const workflows = createWorkflowService(db);
+    const settings = createSettingsService(db);
+    const diagnostics = createDiagnostics({
+      baseDir: join(app.getPath("userData"), "diagnostics"),
+      capture: async () => {
+        // captura a tela principal; qualquer falha vira "sem captura" (a execução não é afetada)
+        const { width, height } = screen.getPrimaryDisplay().size;
+        const sources = await desktopCapturer.getSources({
+          types: ["screen"],
+          thumbnailSize: { width, height },
+        });
+        return sources[0]?.thumbnail.toPNG() ?? null;
+      },
+    });
+    const history = createHistoryService(db, {
+      removeFiles: (paths) => diagnostics.removeFiles(paths),
+    });
+    history.recoverInterrupted(); // execuções que ficaram "em andamento" porque o app fechou de forma abrupta
+    const executions = createExecutionManager({
+      engine,
+      emit: (event) => broadcast(PUSH.executionEvent, event),
+      history,
+      workflows,
+      captureEnabled: () => settings.get().captureDiagnostics,
+      captureDiagnostic: (executionId, nodeId) =>
+        diagnostics.capture(executionId, nodeId),
+    });
     registerIpc(ipcMain, {
       templates: createTemplatesService({ automations, workflows }),
       engine,
       executions,
+      history,
+      diagnostics,
       automations,
-      settings: createSettingsService(db),
+      settings,
       workflows,
       appInfo: { version: app.getVersion(), dataPath: app.getPath("userData") },
       isTrustedUrl,
@@ -62,11 +94,13 @@ if (!app.requestSingleInstanceLock()) {
       if (closing) return;
       closing = true;
       event.preventDefault();
-      executions.shutdown();
-      void engine.stop().finally(() => {
-        db.close();
-        app.quit();
-      });
+      void executions
+        .shutdown()
+        .then(() => engine.stop())
+        .finally(() => {
+          db.close();
+          app.quit();
+        });
     });
   });
   app.on("window-all-closed", () => app.quit());

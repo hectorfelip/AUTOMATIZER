@@ -35,7 +35,18 @@ const api: DesktopApi = {
   executions: {
     start: (input) => ipcRenderer.invoke(IPC.executionsStart, input),
     cancel: (input) => ipcRenderer.invoke(IPC.executionsCancel, input),
+    pause: (input) => ipcRenderer.invoke(IPC.executionsPause, input),
+    resume: (input) => ipcRenderer.invoke(IPC.executionsResume, input),
+    step: (input) => ipcRenderer.invoke(IPC.executionsStep, input),
+    setBreakpoints: (input) => ipcRenderer.invoke(IPC.executionsBreakpoints, input),
     onEvent: subscribe(PUSH.executionEvent),
+  },
+  history: {
+    list: (filters) => ipcRenderer.invoke(IPC.historyList, filters),
+    get: (input) => ipcRenderer.invoke(IPC.historyGet, input),
+    stats: (input) => ipcRenderer.invoke(IPC.historyStats, input),
+    clear: (input) => ipcRenderer.invoke(IPC.historyClear, input),
+    diagnostic: (input) => ipcRenderer.invoke(IPC.historyDiagnostic, input),
   },
   settings: {
     get: () => ipcRenderer.invoke(IPC.settingsGet),

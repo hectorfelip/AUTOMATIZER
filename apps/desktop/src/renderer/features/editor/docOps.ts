@@ -110,6 +110,14 @@ export function duplicateNodes(doc: WorkflowDocument, ids: string[]): { doc: Wor
   return { doc: { ...doc, nodes, edges, visual: { positions } }, newIds: [...idMap.values()] };
 }
 
+// ---- configurações do fluxo ----
+/** Timeout global (1 s a 24 h) e política de erro. Valor fora do intervalo é ignorado (o campo mostra o último válido). */
+export function setFlowSettings(doc: WorkflowDocument, patch: Partial<WorkflowDocument["settings"]>): WorkflowDocument {
+  const next = { ...doc.settings, ...patch };
+  if (!Number.isInteger(next.timeoutSeconds) || next.timeoutSeconds < 1 || next.timeoutSeconds > 86_400) return doc;
+  return { ...doc, settings: next };
+}
+
 // ---- variáveis ----
 export function addVariable(doc: WorkflowDocument): WorkflowDocument {
   let i = Object.keys(doc.variables).length + 1;

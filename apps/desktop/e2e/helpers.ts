@@ -145,7 +145,7 @@ export const edgeSpec = (source: string, sourceHandle: string, target: string) =
 export async function seedFlow(
   page: Page,
   name: string,
-  flow: { nodes: ReturnType<typeof nodeSpec>[]; edges: ReturnType<typeof edgeSpec>[]; variables?: Record<string, { type: "string" | "number" | "boolean"; value: string | number | boolean }> },
+  flow: { nodes: ReturnType<typeof nodeSpec>[]; edges: ReturnType<typeof edgeSpec>[]; variables?: Record<string, { type: "string" | "number" | "boolean"; value: string | number | boolean }>; errorPolicy?: "stop" | "continue" },
 ): Promise<void> {
   await createAutomation(page, name);
   await page.evaluate(
@@ -156,7 +156,7 @@ export async function seedFlow(
       const positions = Object.fromEntries(flow.nodes.map((n, i) => [n.id, { x: (i % 4) * 250, y: Math.floor(i / 4) * 160 }]));
       const res = await window.api.workflows.save({
         automationId: id,
-        document: { schemaVersion: 1, id, name, nodes: flow.nodes, edges: flow.edges, variables: flow.variables ?? {}, settings: { timeoutSeconds: 600, errorPolicy: "stop" }, visual: { positions } } as never,
+        document: { schemaVersion: 1, id, name, nodes: flow.nodes, edges: flow.edges, variables: flow.variables ?? {}, settings: { timeoutSeconds: 600, errorPolicy: flow.errorPolicy ?? "stop" }, visual: { positions } } as never,
       });
       if (!res.ok) throw new Error(res.error.message);
     },

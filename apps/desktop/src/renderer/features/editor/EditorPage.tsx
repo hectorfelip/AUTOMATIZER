@@ -3,13 +3,16 @@ import { useEffect, useState } from "react";
 import { Button } from "../../components/ui/Button";
 import { describeEngine, useEngine } from "../../stores/engine";
 import { currentDoc, isDirty, issuesOf, useEditor } from "../../stores/editor";
+import { useBreakpoints } from "../../stores/breakpoints";
 import { useRun } from "../../stores/run";
 import * as H from "./history";
+import { getNodeDefinition } from "@automation-studio/node-registry";
 import { duplicateNodes } from "./docOps";
 import { FlowCanvas } from "./FlowCanvas";
 import { ExecutionPanel } from "./ExecutionPanel";
 import { IssuesPanel } from "./IssuesPanel";
 import { NodePalette } from "./NodePalette";
+import { RunFromDialog } from "./RunFromDialog";
 import { PropertiesPanel } from "./PropertiesPanel";
 import { VariablesPanel } from "./VariablesPanel";
 
@@ -18,6 +21,15 @@ type Tab = "props" | "vars" | "issues" | "run";
 function useShortcuts() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (e.key === "F9") {
+        const st = useEditor.getState();
+        const id = st.selectedNodes[0];
+        if (id && st.automationId) {
+          e.preventDefault();
+          useBreakpoints.getState().toggle(st.automationId, id);
+        }
+        return;
+      }
       const mod = e.ctrlKey || e.metaKey;
       if (!mod) return;
       const s = useEditor.getState();
@@ -70,12 +82,19 @@ function Shell({ onBack }: { onBack: () => void }) {
   const [tab, setTab] = useState<Tab>("props");
   const engine = describeEngine(useEngine((s) => s.status));
   const running = useRun((s) => s.running);
+  const paused = useRun((s) => s.paused !== null);
+  const [runFrom, setRunFrom] = useState<string | null>(null);
+  const selectedId = useEditor((s) => s.selectedNodes[0] ?? null);
   const selectedCount = useEditor((s) => s.selectedNodes.length);
   const issues = issuesOf(doc);
   const errors = issues.filter((i) => i.severity === "error").length;
   const warnings = issues.length - errors;
   useShortcuts();
   useUnloadGuard(dirty);
+  const nodeIds = doc.nodes.map((n) => n.id).join("|");
+  useEffect(() => {
+    useBreakpoints.getState().prune(doc.id, nodeIds ? nodeIds.split("|") : []); // breakpoints de nós que não existem mais saem
+  }, [doc.id, nodeIds]);
   useEffect(() => {
     if (selectedCount > 0) setTab("props");
   }, [selectedCount]);
@@ -84,10 +103,14 @@ function Shell({ onBack }: { onBack: () => void }) {
   const summary = issues.length === 0 ? "Fluxo válido" : [errors && `${errors} erro${errors > 1 ? "s" : ""}`, warnings && `${warnings} aviso${warnings > 1 ? "s" : ""}`].filter(Boolean).join(" · ");
   const tabs: [Tab, string][] = [["props", "Propriedades"], ["vars", "Variáveis"], ["issues", `Problemas (${issues.length})`], ["run", "Execução"]];
   const blocked = running ? "Já há uma execução em andamento." : errors > 0 ? "Corrija os erros do fluxo antes de executar." : !engine.ready ? `Motor ${engine.label.toLowerCase()}. ${engine.detail}` : "";
-  const runFlow = () => {
+  const runFlow = (options?: Parameters<ReturnType<typeof useRun.getState>["start"]>[2]) => {
     setTab("run");
-    void useRun.getState().start(useEditor.getState().history.present);
+    const st = useEditor.getState();
+    if (st.automationId) void useRun.getState().start(st.automationId, st.history.present, options);
   };
+  const selectedNode = selectedId ? doc.nodes.find((n) => n.id === selectedId) : undefined;
+  const selectedLabel = selectedNode ? (getNodeDefinition(selectedNode.type)?.label ?? selectedNode.type) : "";
+  const canFrom = blocked === "" && selectedNode !== undefined && selectedNode.type !== "trigger.manual";
 
   return (
     <div className="flex h-full flex-col">
@@ -109,13 +132,37 @@ function Shell({ onBack }: { onBack: () => void }) {
             </span>
           )}
           {running ? (
-            <Button size="sm" variant="danger" onClick={() => void useRun.getState().cancel()}>
-              Cancelar
-            </Button>
+            <>
+              {paused ? (
+                <>
+                  <Button size="sm" variant="primary" onClick={() => void useRun.getState().resume()}>
+                    Continuar
+                  </Button>
+                  <Button size="sm" onClick={() => void useRun.getState().step()} title="Executa o nó seguinte e pausa de novo">
+                    Próximo passo
+                  </Button>
+                </>
+              ) : (
+                <Button size="sm" onClick={() => void useRun.getState().pause()} title="A pausa vale ao fim do nó em andamento">
+                  Pausar
+                </Button>
+              )}
+              <Button size="sm" variant="danger" onClick={() => void useRun.getState().cancel()}>
+                Cancelar
+              </Button>
+            </>
           ) : (
-            <Button size="sm" variant="primary" disabled={blocked !== ""} title={blocked || "Executar o fluxo como está na tela"} onClick={runFlow}>
-              Executar
-            </Button>
+            <>
+              <Button size="sm" variant="primary" disabled={blocked !== ""} title={blocked || "Executar o fluxo como está na tela"} onClick={() => runFlow()}>
+                Executar
+              </Button>
+              <Button size="sm" disabled={blocked !== ""} title={blocked || "Executar pausando antes de cada nó"} onClick={() => runFlow({ mode: "step" })}>
+                Passo a passo
+              </Button>
+              <Button size="sm" disabled={!canFrom} title={canFrom ? "Executar a partir do nó selecionado" : blocked || "Selecione um nó (que não seja o início) para executar a partir dele"} onClick={() => setRunFrom(selectedId)}>
+                Executar a partir daqui
+              </Button>
+            </>
           )}
           <Button size="sm" disabled={!H.canUndo(history)} onClick={() => useEditor.getState().undo()} title="Desfazer (Ctrl+Z)">
             Desfazer
@@ -158,6 +205,17 @@ function Shell({ onBack }: { onBack: () => void }) {
           </div>
         </aside>
       </div>
+      <RunFromDialog
+        doc={doc}
+        nodeId={runFrom}
+        nodeLabel={selectedLabel}
+        onClose={() => setRunFrom(null)}
+        onRun={(variables) => {
+          const fromNodeId = runFrom;
+          setRunFrom(null);
+          if (fromNodeId) runFlow({ mode: "from", fromNodeId, variables });
+        }}
+      />
     </div>
   );
 }

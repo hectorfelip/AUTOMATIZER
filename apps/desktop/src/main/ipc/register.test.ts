@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { IPC, type IpcResult } from "@automation-studio/shared-types";
 import { openDatabase } from "../database/db.js";
 import { createAutomationService } from "../services/automations.js";
+import { createDiagnostics } from "../services/diagnostics.js";
+import { createHistoryService } from "../services/history.js";
 import { createExecutionManager } from "../services/executions.js";
 import { createTemplatesService } from "../services/templates.js";
 import { createSettingsService } from "../services/settings.js";
@@ -22,6 +24,7 @@ beforeEach(() => {
   const db = openDatabase(":memory:");
   const automations = createAutomationService(db);
   const workflows = createWorkflowService(db);
+  const history = createHistoryService(db);
   registerIpc(
     { handle: (c, l) => void handlers.set(c, l) },
     {
@@ -31,7 +34,9 @@ beforeEach(() => {
       workflows,
       appInfo: { version: "0.0.0", dataPath: "/x" },
       engine: { status: { state: "unavailable", reason: "teste" } },
-      executions: createExecutionManager({ engine: { status: { state: "unavailable", reason: "teste" }, executeAction: async () => ({ kind: "cancelled" }), cancel: () => undefined }, emit: () => undefined }),
+      history,
+      diagnostics: createDiagnostics({ baseDir: "/tmp/as-diag-test", capture: async () => null }),
+      executions: createExecutionManager({ engine: { status: { state: "unavailable", reason: "teste" }, executeAction: async () => ({ kind: "cancelled" }), cancel: () => undefined }, emit: () => undefined, history, workflows }),
       isTrustedUrl: (u) => u.startsWith("file://"),
       onError: (e) => errors.push(e),
     },
@@ -63,6 +68,15 @@ describe("IPC", () => {
     ["sem argumento", IPC.automationsRename, []],
     ["argumento extra", IPC.automationsDelete, [{ id: "a" }, "outro"]],
     ["tema inválido", IPC.settingsUpdate, [{ theme: "roxo" }]],
+    ["captura não booleana", IPC.settingsUpdate, [{ captureDiagnostics: "sim" }]],
+    ["execução sem automação", IPC.executionsStart, [{ document: {} }]],
+    ["opções de execução com campo extra", IPC.executionsStart, [{ automationId: "a", document: {}, options: { shell: "rm" } }]],
+    ["breakpoints sem lista", IPC.executionsBreakpoints, [{ executionId: "e" }]],
+    ["histórico: status inválido", IPC.historyList, [{ statuses: ["hackeado"] }]],
+    ["histórico: limite alto demais", IPC.historyList, [{ limit: 100000 }]],
+    ["histórico: data inválida", IPC.historyList, [{ from: "ontem" }]],
+    ["histórico: campo extra", IPC.historyGet, [{ executionId: "e", sql: "x" }]],
+    ["captura: seq inválido", IPC.historyDiagnostic, [{ executionId: "e", seq: 0 }]],
     ["lista com argumento", IPC.automationsList, ["x"]],
   ])("rejeita entrada inválida: %s", (_n, channel, args, msg) => {
     const r = call(channel, args);
@@ -96,6 +110,8 @@ describe("IPC", () => {
         appInfo: { version: "0", dataPath: "" },
         engine: { status: { state: "starting" } },
         executions: {} as never,
+        history: {} as never,
+        diagnostics: {} as never,
         templates: {} as never,
         isTrustedUrl: () => true,
         onError: (e) => errors.push(e),
@@ -132,7 +148,7 @@ describe("IPC", () => {
     const a = call(IPC.automationsCreate, [{ name: "X" }]);
     const id = a.ok ? a.data.id : "";
     const doc = (call(IPC.workflowsLoad, [{ automationId: id }]) as unknown as { data: { document: unknown } }).data.document;
-    const r = call(IPC.executionsStart, [{ document: doc }]);
+    const r = call(IPC.executionsStart, [{ automationId: id, document: doc }]);
     expect(r).toMatchObject({ ok: false, error: { code: "ENGINE_UNAVAILABLE" } });
     if (!r.ok) expect(r.error.message).toContain("teste");
   });
@@ -154,8 +170,25 @@ describe("IPC", () => {
   });
 
   it("settings e info", () => {
-    expect(call(IPC.settingsUpdate, [{ theme: "dark" }])).toEqual({ ok: true, data: { theme: "dark" } });
-    expect(call(IPC.settingsGet)).toEqual({ ok: true, data: { theme: "dark" } });
+    expect(call(IPC.settingsGet)).toEqual({ ok: true, data: { theme: "system", captureDiagnostics: false } }); // captura desligada por padrão
+    expect(call(IPC.settingsUpdate, [{ theme: "dark" }])).toEqual({ ok: true, data: { theme: "dark", captureDiagnostics: false } });
+    expect(call(IPC.settingsUpdate, [{ captureDiagnostics: true }])).toEqual({ ok: true, data: { theme: "dark", captureDiagnostics: true } });
+    expect(call(IPC.settingsGet)).toEqual({ ok: true, data: { theme: "dark", captureDiagnostics: true } });
     expect(call(IPC.appInfo)).toMatchObject({ ok: true, data: { version: "0.0.0" } });
+  });
+
+  it("histórico: lista vazia, execução inexistente e captura inexistente → NOT_FOUND", () => {
+    expect(call(IPC.historyList, [{}])).toMatchObject({ ok: true, data: { items: [], total: 0 } });
+    expect(call(IPC.historyStats, [{}])).toMatchObject({ ok: true, data: { total: 0 } });
+    expect(call(IPC.historyGet, [{ executionId: "nope" }])).toMatchObject({ ok: false, error: { code: "NOT_FOUND" } });
+    expect(call(IPC.historyDiagnostic, [{ executionId: "nope", seq: 1 }])).toMatchObject({ ok: false, error: { code: "NOT_FOUND" } });
+    expect(call(IPC.historyClear, [{}])).toMatchObject({ ok: true, data: { deleted: 0 } });
+  });
+
+  it("controles de execução sobre id desconhecido → NOT_FOUND", () => {
+    for (const ch of [IPC.executionsPause, IPC.executionsResume, IPC.executionsStep, IPC.executionsCancel]) {
+      expect(call(ch, [{ executionId: "x" }])).toMatchObject({ ok: false, error: { code: "NOT_FOUND" } });
+    }
+    expect(call(IPC.executionsBreakpoints, [{ executionId: "x", nodeIds: [] }])).toMatchObject({ ok: false, error: { code: "NOT_FOUND" } });
   });
 });

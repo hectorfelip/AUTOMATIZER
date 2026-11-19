@@ -3,7 +3,7 @@ import { createEmptyWorkflow } from "@automation-studio/workflow-schema";
 import { hasErrors, validateWorkflow } from "@automation-studio/workflow-validator";
 import {
   addNode, addVariable, connect, connectionProblem, convertVariableValue, duplicateNodes, moveNodes,
-  removeEdges, removeNodes, removeVariable, renameVariable, setVariable, updateNodeConfig,
+  removeEdges, removeNodes, removeVariable, renameVariable, setFlowSettings, setVariable, updateNodeConfig,
 } from "./docOps";
 
 const base = () => createEmptyWorkflow("f", "T");
@@ -132,5 +132,14 @@ describe("variáveis", () => {
     expect(convertVariableValue("abc", "number")).toBe(0);
     expect(convertVariableValue("true", "boolean")).toBe(true);
     expect(convertVariableValue(5, "string")).toBe("5");
+  });
+});
+
+describe("setFlowSettings", () => {
+  it("muda timeout e política; valor inválido não altera nada", () => {
+    const d = createEmptyWorkflow("a", "A");
+    expect(setFlowSettings(d, { errorPolicy: "continue" }).settings).toEqual({ timeoutSeconds: 600, errorPolicy: "continue" });
+    expect(setFlowSettings(d, { timeoutSeconds: 30 }).settings.timeoutSeconds).toBe(30);
+    for (const bad of [0, -1, 86_401, 1.5, Number.NaN]) expect(setFlowSettings(d, { timeoutSeconds: bad })).toBe(d);
   });
 });

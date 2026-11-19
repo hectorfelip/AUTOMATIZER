@@ -11,7 +11,7 @@ const runStatus = (page: Page) => page.getByTestId("run-status");
 async function run(page: Page, name: string) {
   await waitEngineReady(page);
   await openEditor(page, name);
-  await page.getByRole("button", { name: "Executar" }).click();
+  await page.getByRole("button", { name: "Executar", exact: true }).click();
 }
 
 test("organizar arquivos: mover só os PDFs pelo app, de verdade, no disco", async () => {
@@ -120,7 +120,7 @@ test("exemplo pronto pela interface: cria, abre no editor e executa", async () =
   await page.getByLabel("Valor de voltas").fill("2"); // edita a cópia, não o exemplo
 
   await waitEngineReady(page);
-  await page.getByRole("button", { name: "Executar" }).click();
+  await page.getByRole("button", { name: "Executar", exact: true }).click();
   await expect(runStatus(page)).toContainText("Execução concluída", { timeout: 15_000 });
   await expect(page.getByTestId("run-row-repetir")).toContainText("2 repetição(ões) concluída(s).");
   await closeApp(app);
@@ -185,7 +185,7 @@ test("exemplo 'Organizar por tipo': cria, edita as variáveis, executa e os arqu
   await page.getByLabel("Valor de destino").fill(destino);
 
   await waitEngineReady(page);
-  await page.getByRole("button", { name: "Executar" }).click();
+  await page.getByRole("button", { name: "Executar", exact: true }).click();
   await expect(runStatus(page)).toContainText("Execução concluída", { timeout: 15_000 });
   await expect(page.getByTestId("run-row-cada")).toContainText("5 item(ns) processado(s).");
   expect(names(join(destino, "pdf"))).toEqual(["a.pdf", "b.pdf"]);
@@ -232,7 +232,7 @@ test("seletor 'Inserir…' oferece só o que existe naquele ponto do fluxo; erro
   await page.getByRole("tab", { name: /Problemas/ }).click();
   await expect(page.getByText("O item “arquivo” não tem “pth”. Disponíveis: name, stem, extension, path, folder, size, modifiedAt.")).toBeVisible();
   await expect(page.getByTestId("validation-summary")).toContainText("erro");
-  await expect(page.getByRole("button", { name: "Executar" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Executar", exact: true })).toBeDisabled();
 
   // o item não existe fora do corpo do laço
   await page.getByRole("tab", { name: "Propriedades" }).click();

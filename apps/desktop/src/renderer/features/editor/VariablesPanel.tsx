@@ -2,7 +2,7 @@ import type { VariableType } from "@automation-studio/workflow-schema";
 import { useState } from "react";
 import { Button } from "../../components/ui/Button";
 import { currentDoc, useEditor } from "../../stores/editor";
-import { addVariable, convertVariableValue, removeVariable, renameVariable, setVariable } from "./docOps";
+import { addVariable, convertVariableValue, removeVariable, renameVariable, setFlowSettings, setVariable } from "./docOps";
 
 const input = "w-full rounded-md border border-line bg-bg px-2 py-1 text-sm text-fg";
 
@@ -87,6 +87,35 @@ export function VariablesPanel() {
       <Button size="sm" onClick={() => commit(addVariable(doc))}>
         Adicionar variável
       </Button>
+      <fieldset className="mt-2 flex flex-col gap-2 border-t border-line pt-3">
+        <legend className="text-sm font-medium">Execução do fluxo</legend>
+        <label className="flex flex-col gap-1 text-sm">
+          Tempo limite (segundos)
+          <input
+            type="number"
+            min={1}
+            max={86400}
+            aria-label="Tempo limite do fluxo (segundos)"
+            value={doc.settings.timeoutSeconds}
+            onChange={(e) => commit(setFlowSettings(doc, { timeoutSeconds: Math.trunc(Number(e.target.value)) }), "flow:timeout")}
+            className={input}
+          />
+          <span className="text-xs text-muted">O tempo em que a execução está pausada não conta.</span>
+        </label>
+        <label className="flex flex-col gap-1 text-sm">
+          Quando um nó falha
+          <select
+            aria-label="Política de erro do fluxo"
+            value={doc.settings.errorPolicy}
+            onChange={(e) => commit(setFlowSettings(doc, { errorPolicy: e.target.value as "stop" | "continue" }))}
+            className={input}
+          >
+            <option value="stop">Parar a execução</option>
+            <option value="continue">Continuar pelo caminho normal (termina “com avisos”)</option>
+          </select>
+          <span className="text-xs text-muted">Falhas do motor, tempo esgotado e configuração inválida sempre param. Um nó com saída “Erro” ligada segue por ela, qualquer que seja a política.</span>
+        </label>
+      </fieldset>
     </div>
   );
 }

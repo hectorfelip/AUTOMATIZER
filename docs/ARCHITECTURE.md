@@ -326,24 +326,33 @@ Tabelas principais:
 - change_note
 
 ### executions
+> Ampliado na Fase 5 (ADR 0009, migração `0003`).
 - id (PK)
-- automation_id (FK)
-- workflow_version_id (FK)
-- status
+- automation_id (FK, exclusão em cascata)
+- workflow_version_id (FK, nulo quando o fluxo executado era um rascunho diferente da versão salva)
+- workflow_name
+- mode (`run` | `step` | `from`)
+- status (`running` | `paused` | `completed` | `completed_with_warnings` | `failed` | `cancelled`)
 - started_at
 - finished_at
 - duration_ms
 - error_code
 - error_message
+- error_node_id
+- warnings
+- definition_json (cópia do fluxo executado)
+- snapshot_json (variáveis e resultados no fim; prévia limitada)
 
 ### execution_logs
 - id (PK)
-- execution_id (FK)
+- execution_id (FK, exclusão em cascata)
+- seq (ordem dentro da execução)
 - timestamp
-- level
+- level (`info` | `warn` | `error`)
 - node_id
 - message
 - details_json
+- diagnostic_path (captura de tela opcional, só dentro da pasta de diagnóstico do app)
 
 ### schedules
 - id (PK)

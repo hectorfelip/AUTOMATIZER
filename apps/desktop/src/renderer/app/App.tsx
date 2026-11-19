@@ -4,6 +4,7 @@ import { Button } from "../components/ui/Button";
 import { Dialog } from "../components/ui/Dialog";
 import { AutomationsPage } from "../features/automations/AutomationsPage";
 import { Dashboard } from "../features/dashboard/Dashboard";
+import { HistoryPage } from "../features/history/HistoryPage";
 import { EditorPage } from "../features/editor/EditorPage";
 import { SettingsPage } from "../features/settings/SettingsPage";
 import { useAutomations } from "../stores/automations";
@@ -23,7 +24,7 @@ function useApplyTheme() {
   }, [theme]);
 }
 
-type View = { page: "dashboard" | "automations" | "settings"; createOnOpen?: boolean } | { page: "editor"; automationId: string };
+type View = { page: "dashboard" | "automations" | "history" | "settings"; createOnOpen?: boolean } | { page: "editor"; automationId: string };
 
 export function App() {
   const [view, setView] = useState<View>({ page: "dashboard" });
@@ -62,6 +63,7 @@ export function App() {
         {view.page === "automations" && (
           <AutomationsPage openCreate={view.createOnOpen} onOpen={(id) => go({ page: "editor", automationId: id })} />
         )}
+        {view.page === "history" && <HistoryPage />}
         {view.page === "settings" && <SettingsPage />}
         {view.page === "editor" && <EditorPage automationId={view.automationId} onBack={() => go({ page: "automations" })} />}
       </main>

@@ -124,19 +124,19 @@ Desenvolver em entregas verticais. Cada fase deve terminar com algo executável 
 ## Fase 5 — Execução, depuração e histórico
 
 ### Tarefas
-- [ ] Criar painel de execução.
-- [ ] Exibir nó atual.
-- [ ] Exibir estado de cada nó.
-- [ ] Implementar iniciar, pausar, continuar e cancelar quando suportado.
-- [ ] Implementar execução passo a passo.
-- [ ] Implementar execução a partir de nó selecionado, com contexto definido.
-- [ ] Implementar breakpoints.
-- [ ] Implementar visualização de variáveis.
-- [ ] Persistir histórico.
-- [ ] Persistir logs.
-- [ ] Criar filtros e detalhes de execução.
-- [ ] Implementar política de erro (parar, continuar em caminhos permitidos).
-- [ ] Criar captura de diagnóstico opcional.
+- [x] Criar painel de execução.
+- [x] Exibir nó atual.
+- [x] Exibir estado de cada nó.
+- [x] Implementar iniciar, pausar, continuar e cancelar quando suportado.
+- [x] Implementar execução passo a passo.
+- [x] Implementar execução a partir de nó selecionado, com contexto definido.
+- [x] Implementar breakpoints.
+- [x] Implementar visualização de variáveis.
+- [x] Persistir histórico.
+- [x] Persistir logs.
+- [x] Criar filtros e detalhes de execução.
+- [x] Implementar política de erro (parar, continuar em caminhos permitidos).
+- [x] Criar captura de diagnóstico opcional. *(implementada; captura real de tela **não verificada no Windows**)*
 
 ### Critérios de aceite
 - Usuário identifica qual nó está executando.

@@ -1,7 +1,7 @@
 import type { DatabaseSync } from "node:sqlite";
 import { THEMES, type AppSettings, type SettingsPatch } from "@automation-studio/shared-types";
 
-const DEFAULTS: AppSettings = { theme: "system" };
+const DEFAULTS: AppSettings = { theme: "system", captureDiagnostics: false };
 
 export function createSettingsService(db: DatabaseSync, now: () => string = () => new Date().toISOString()) {
   const get = (): AppSettings => {
@@ -9,7 +9,8 @@ export function createSettingsService(db: DatabaseSync, now: () => string = () =
     const stored = Object.fromEntries(rows.map((r) => [r.key, safeParse(r.value_json)]));
     // Valor corrompido ou desconhecido no banco cai no padrão, nunca quebra o app.
     const theme = THEMES.includes(stored.theme as never) ? (stored.theme as AppSettings["theme"]) : DEFAULTS.theme;
-    return { theme };
+    const captureDiagnostics = typeof stored.captureDiagnostics === "boolean" ? stored.captureDiagnostics : DEFAULTS.captureDiagnostics;
+    return { theme, captureDiagnostics };
   };
 
   return {
