@@ -4,6 +4,7 @@
 Linux verificado; Windows pendente nos itens marcados em `docs/reviews/`.
 
 ### Adicionado
+- **Fase 9 (parcial):** configuração do instalador NSIS (electron-builder), motor congelado em `resources/engine`, política de dados preservados, recusa de banco de versão futura, teste de atualização com dados reais (`docs/INSTALLER.md`). **Instalador não gerado/testado no Windows.**
 - **Fase 8 (parcial):** nó "Chamar fluxo" (subfluxos com parâmetros e retorno pelas variáveis do fluxo chamado, sem mudar o schema), exemplo web na biblioteca de templates (ADR 0013). OCR, reconhecimento visual e plugins **não** implementados.
 - **Fase 7 (web):** nós Navegador (abrir, clicar, preencher, extrair, esperar, fechar) com Playwright; sessão por execução fechada ao fim; cancelamento rápido (ADR 0012). Gravador **não** implementado.
 - **Fase 6b:** agendamentos (única, diária, semanal, ao entrar) via Agendador de Tarefas do Windows; disparo por `--run-automation`; próxima/última execução; histórico marca execuções agendadas (ADR 0011). **Registro no Windows não verificado.**
@@ -17,4 +18,4 @@ Linux verificado; Windows pendente nos itens marcados em `docs/reviews/`.
 - Navegação só para a própria página do app (antes, qualquer `file://` seria aceito como origem confiável do IPC); bloqueio de `<webview>`, redirecionamentos e checagem de permissões.
 
 ### Conhecido
-Sem instalador, gravador (7), OCR/imagem/plugins (8). Ver `docs/USER_GUIDE.md §8`.
+Instalador ainda não gerado no Windows; gravador (7), OCR/imagem/plugins (8). Ver `docs/USER_GUIDE.md §8`.

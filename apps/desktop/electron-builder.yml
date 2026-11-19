@@ -1,0 +1,36 @@
+# Empacotamento (Fase 9). Gera o instalador Windows x64 (NSIS) a partir de `npm run build` + do motor congelado
+# (`python scripts/build-engine.py`). Ver docs/INSTALLER.md.
+appId: com.automationstudio.app
+productName: Automation Studio
+copyright: Automation Studio
+directories:
+  output: ../../release
+files:
+  - out/**
+  - package.json
+extraResources:
+  # motor Python congelado (PyInstaller onedir): o usuário final NÃO precisa ter Python
+  - from: ../../engine/python/dist/automation-engine
+    to: engine
+asar: true
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  # sem certificado, o instalador sai NÃO assinado (o Windows mostrará "editor desconhecido"); com certificado, ver docs/INSTALLER.md
+  signAndEditExecutable: false
+nsis:
+  oneClick: false
+  perMachine: false # instala só para o usuário: não pede administrador (o app também não deve rodar elevado)
+  allowToChangeInstallationDirectory: true
+  # POLÍTICA DE DADOS: desinstalar NÃO apaga %APPDATA%\Automation Studio (banco, histórico, capturas). Atualizar também não.
+  deleteAppDataOnUninstall: false
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Automation Studio
+  uninstallDisplayName: Automation Studio
+linux:
+  executableName: automation-studio
+  # só para validar o conteúdo do pacote em CI/container (`--dir`); o produto alvo é Windows
+  target: dir
+  category: Utility

@@ -70,7 +70,10 @@ Referência completa em `docs/ACTIONS.md`. Em resumo: nenhuma ação **apaga** a
 - Sem gravador, OCR ou plugins (fases futuras). Automação web: sem login persistente, abas múltiplas, upload/download.
 - Listas só vêm de "Listar arquivos" (até 2000 itens).
 
-## 12. Problemas comuns
+## 12. Seus dados, atualização e desinstalação
+Os dados (automações, histórico, capturas) ficam em `%APPDATA%\Automation Studio`. **Atualizar** o aplicativo preserva tudo. **Desinstalar não apaga os dados** (para recomeçar do zero, apague essa pasta com o app fechado). Se um app mais antigo encontrar dados de uma versão mais nova, ele **não os abre** e pede para atualizar.
+
+## 13. Problemas comuns
 | Mensagem | O que fazer |
 |---|---|
 | Motor "Indisponível" | Python 3.11+ não encontrado; veja o motivo no Dashboard. |

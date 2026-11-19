@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import { PUSH } from "@automation-studio/shared-types";
 import { openDatabase } from "./database/db.js";
+import { DatabaseTooNewError } from "./database/migrate.js";
 import { registerIpc } from "./ipc/register.js";
 import { EngineClient } from "./services/engine/client.js";
 import { resolveEngineLaunch } from "./services/engine/launch.js";
@@ -29,9 +30,19 @@ if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
   void app.whenReady().then(() => {
-    const db = openDatabase(
-      join(app.getPath("userData"), "automation-studio.db"),
-    );
+    let db: ReturnType<typeof openDatabase>;
+    try {
+      db = openDatabase(join(app.getPath("userData"), "automation-studio.db"));
+    } catch (err) {
+      // banco de uma versão mais nova (ou ilegível): NÃO mexe nele; explica e fecha
+      const msg =
+        err instanceof DatabaseTooNewError
+          ? "Seus dados foram criados por uma versão mais nova do Automation Studio. Atualize o aplicativo para abri-los; nada foi alterado."
+          : `Não foi possível abrir o banco de dados. Seus dados não foram alterados. (${err instanceof Error ? err.message : "erro desconhecido"})`;
+      dialog.showErrorBox("Automation Studio", msg);
+      app.exit(1);
+      return;
+    }
 
     const broadcast = (channel: string, data: unknown) => {
       for (const w of BrowserWindow.getAllWindows())

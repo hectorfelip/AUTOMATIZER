@@ -20,6 +20,8 @@ Pré-requisitos: Node ≥ 22 e **Python ≥ 3.11 com `pytest`** (necessário tam
 
 | Comando / variável | O que faz |
 |---|---|
+| `npm run package:dir -w @automation-studio/desktop` | Empacota a pasta do app (Linux, validação) em `release/` — ver `docs/INSTALLER.md` |
+| `npm run package:win -w @automation-studio/desktop` | Gera o instalador NSIS (só no Windows) |
 | `python scripts/build-engine.py` | Gera o executável do motor (PyInstaller) em `engine/python/dist/` — ver `docs/engine-packaging.md` |
 | `python scripts/verify-actions.py [--title "Bloco de Notas"]` | Exercita as ações de verdade (arquivos automático; no Windows, Bloco de Notas com confirmação visual) |
 | `python scripts/verify-engine.py <exe> [--clean-path]` | Verifica um executável do motor (protocolo, cancelamento, imports) |

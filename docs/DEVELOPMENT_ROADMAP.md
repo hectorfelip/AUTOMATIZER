@@ -216,15 +216,15 @@ Só inicia após a Fase 6a aceita; não bloqueia o MVP.
 - [ ] Testar instalação em Windows limpo.
 - [ ] Testar diferentes escalas de DPI.
 - [ ] Testar múltiplas resoluções.
-- [ ] Testar caminhos com acentos e espaços.
+- [x] Testar caminhos com acentos e espaços. *(ações de arquivo no Windows real, por Hector — `verify-actions.py` 11/11)*
 - [ ] Testar permissões e aplicativos elevados.
-- [ ] Revisar segurança do IPC.
-- [ ] Revisar armazenamento de segredos.
-- [ ] Otimizar uso de memória.
-- [ ] Criar instalador.
-- [ ] Criar desinstalador e política de preservação de dados.
-- [ ] Criar documentação de usuário.
-- [ ] Criar notas de versão.
+- [x] Revisar segurança do IPC.
+- [x] Revisar armazenamento de segredos. *(nenhum segredo armazenado hoje)*
+- [ ] Otimizar uso de memória. *(só medido: ~493 MB em repouso no Linux; sem otimização)*
+- [ ] Criar instalador. *(configurado — `docs/INSTALLER.md`; pacote validado em Linux; **build NSIS não executado**)*
+- [ ] Criar desinstalador e política de preservação de dados. *(política definida e configurada; **não verificada no Windows**)*
+- [x] Criar documentação de usuário.
+- [x] Criar notas de versão.
 
 ### Critérios de aceite
 - Instalador funciona em máquina de teste.

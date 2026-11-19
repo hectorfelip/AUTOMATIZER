@@ -12,3 +12,4 @@ playwright-report/
 engine/python/build/
 engine/python/dist/
 .venv*/
+release/
