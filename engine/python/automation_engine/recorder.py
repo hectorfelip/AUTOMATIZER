@@ -17,7 +17,7 @@ from typing import Any, Callable, Optional
 
 MODIFIER_ALIASES = {
     "ctrl": "ctrl", "ctrl_l": "ctrl", "ctrl_r": "ctrl",
-    "alt": "alt", "alt_l": "alt", "alt_r": "alt", "alt_gr": "alt",
+    "alt": "alt", "alt_l": "alt", "alt_r": "alt", "alt_gr": "altgr",  # AltGr (ABNT2: "/" é AltGr+Q) NÃO é Alt: o Windows ainda injeta um Ctrl falso junto
     "shift": "shift", "shift_l": "shift", "shift_r": "shift",
     "cmd": "win", "cmd_l": "win", "cmd_r": "win", "win": "win",
 }
@@ -51,7 +51,7 @@ class Processor:
         if kind == "click":
             return self._click(raw)
         if kind in ("press", "release"):
-            return self._key(kind == "press", str(raw.get("key", "")))
+            return self._key(kind == "press", str(raw.get("key", "")), str(raw.get("canon", "")))
         return []
 
     def _click(self, raw: dict[str, Any]) -> list[dict[str, Any]]:
@@ -63,8 +63,9 @@ class Processor:
             return []
         return [{"t": "click", "x": x, "y": y, "button": raw["button"], "ms": self.ms()}]
 
-    def _key(self, pressed: bool, key: str) -> list[dict[str, Any]]:
-        if not key:
+    def _key(self, pressed: bool, key: str, canon: str = "") -> list[dict[str, Any]]:
+        """`key` = o que a tecla PRODUZ (ex.: "A", "!", "/", "enter"); `canon` = a tecla-base física (ex.: "a", "1"), usada só para atalhos."""
+        if not key and not canon:
             return []
         mod = MODIFIER_ALIASES.get(key)
         if mod:
@@ -72,10 +73,14 @@ class Processor:
             return []
         if not pressed:
             return []
-        name = key.lower() if len(key) > 1 else key
-        # controles globais (nunca gravados)
-        if {"ctrl", "alt"} <= self.mods and name.lower() in CONTROL:
-            action = CONTROL[name.lower()]
+        produced = key if key and (len(key) == 1 and key.isprintable() or key.lower() in NAMED or key.lower() == "space") else ""
+        base = (canon or (key if len(key) == 1 else key.lower())).lower()
+        # AltGr: o Windows injeta Ctrl+Alt falsos junto. Com AltGr o que importa é o caractere PRODUZIDO ("/" no ABNT2), nunca um atalho.
+        altgr = "altgr" in self.mods
+        mods = self.mods - ({"ctrl", "alt"} if altgr else set())
+        # controles globais (nunca gravados): precisam de Ctrl+Alt REAIS
+        if {"ctrl", "alt"} <= mods and base in CONTROL:
+            action = CONTROL[base]
             if action == "stop":
                 return [{"t": "stop", "ms": self.ms()}]
             if action == "pause":
@@ -84,18 +89,18 @@ class Processor:
             return [{"t": "secret", "on": self.secret, "ms": self.ms()}]
         if self.paused:
             return []
-        held = [m for m in MOD_ORDER if m in self.mods]
+        held = [m for m in MOD_ORDER if m in mods]
+        name = key.lower() if len(key) > 1 else key
         if name in NAMED:
             return [{"t": "hotkey", "keys": [*(m for m in held if m != "shift"), *(["shift"] if "shift" in held else []), NAME_FIX.get(name, name)], "ms": self.ms()}]
-        if len(name) == 1:
-            if {"ctrl", "alt", "win"} & self.mods:  # atalho (ctrl+s etc.)
-                return [{"t": "hotkey", "keys": [*held, name.lower()], "ms": self.ms()}]
-            if self.secret:
-                return [{"t": "secret_key", "ms": self.ms()}]  # NUNCA o caractere
-            return [{"t": "char", "char": name, "ms": self.ms()}]
-        if name == "space":
-            return [{"t": "secret_key", "ms": self.ms()}] if self.secret else [{"t": "char", "char": " ", "ms": self.ms()}]
-        return []
+        if {"ctrl", "alt", "win"} & mods:  # atalho (ctrl+s etc.): a tecla-base, não o caractere (com Ctrl o produzido é um código de controle)
+            if len(base) == 1 and base.isprintable() and base != " ":
+                return [{"t": "hotkey", "keys": [*held, base], "ms": self.ms()}]
+            return []
+        ch = " " if name == "space" else (produced if len(produced) == 1 else "")
+        if not ch:
+            return []
+        return [{"t": "secret_key", "ms": self.ms()}] if self.secret else [{"t": "char", "char": ch, "ms": self.ms()}]
 
 
 def _emit(out: Any, obj: dict[str, Any]) -> None:
@@ -106,26 +111,28 @@ def _emit(out: Any, obj: dict[str, Any]) -> None:
 def _pynput_source(feed: Callable[[dict[str, Any]], None], stop: threading.Event) -> None:
     from pynput import keyboard, mouse  # type: ignore[import-not-found]
 
-    def key_name(key: Any) -> str:
+    kl: Any = None
+
+    def produced(key: Any) -> str:
+        """O que a tecla produz (com Shift/AltGr): "A", "!", "/"; ou o nome de uma tecla especial ("enter")."""
         char = getattr(key, "char", None)
         if char:
             return char
         return getattr(key, "name", "") or ""
 
-    kl = keyboard.Listener(
-        on_press=lambda k: feed({"k": "press", "key": _canonical_char(kl, k) or key_name(k)}),
-        on_release=lambda k: feed({"k": "release", "key": _canonical_char(kl, k) or key_name(k)}),
-    )
-
-    def _canonical_char(listener: Any, key: Any) -> str:
-        # com Ctrl pressionado o pynput devolve códigos de controle ('\x12'); canonical() devolve a letra
+    def canon(key: Any) -> str:
+        """A tecla-base física ("a", "1"): é a única forma de ver a LETRA quando Ctrl está pressionado (o produzido vira código de controle)."""
         try:
-            c = listener.canonical(key)
+            c = kl.canonical(key)
             ch = getattr(c, "char", None)
             return ch if ch and ch.isprintable() else ""
         except Exception:  # noqa: BLE001
             return ""
 
+    def on(kind: str) -> Callable[[Any], None]:
+        return lambda k: feed({"k": kind, "key": produced(k), "canon": canon(k)})
+
+    kl = keyboard.Listener(on_press=on("press"), on_release=on("release"))
     ml = mouse.Listener(on_click=lambda x, y, b, pressed: feed({"k": "click", "x": x, "y": y, "button": getattr(b, "name", ""), "pressed": pressed}))
     kl.start()
     ml.start()

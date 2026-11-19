@@ -44,5 +44,8 @@ Rodar `scripts/spike-recorder.py` no Windows (deixa 10 s capturando e imprime ev
 - **Revisão antes de criar:** tela com edição, remoção e reordenação dos passos; "Criar automação" valida o fluxo (erros impedem) e **nunca executa**; "Descartar" apaga tudo da memória.
 - **Só descarta o clique no botão do próprio app** (Pausar/Parar), recente e último; cliques reais em qualquer lugar da tela são mantidos (uma versão inicial filtrava por posição e engoliria cliques de quem grava em outro programa — corrigido).
 
+## Correções após o 1º teste no Windows
+`write EPIPE` ao parar por Ctrl+Alt+R (pipe de um processo já encerrado sem tratador de erro) e auditoria dos atalhos/digitação: o processador usa o **caractere produzido** para texto e a **tecla-base** só para atalhos; **AltGr** (ABNT2: `/` = AltGr+Q) é tratado à parte e nunca vira atalho. Ver `docs/reviews/fase-7-gravador.md`.
+
 ## Não verificado (precisa do Windows)
 Captura real de teclado/mouse **dentro do app** (o spike validou o `pynput`; o e2e usa uma fonte falsa de eventos); a **faixa vermelha, minimizar ao iniciar e restaurar ao parar** (essas operações nativas ficam desligadas no e2e: sem gerenciador de janelas elas travavam o processo principal); os atalhos globais com `pynput` + `canonical()` (letras com Ctrl pressionado); empacotar `pynput` no motor congelado.

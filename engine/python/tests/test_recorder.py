@@ -44,7 +44,7 @@ class TestProcessor:
         assert [e["keys"] for e in ev] == [["enter"], ["shift", "tab"], ["pagedown"], ["f5"]]
 
     def test_aliases_de_modificadores(self):
-        ev = feed(Processor(), {"k": "press", "key": "ctrl_l"}, {"k": "press", "key": "alt_gr"}, {"k": "press", "key": "x"})
+        ev = feed(Processor(), {"k": "press", "key": "ctrl_r"}, {"k": "press", "key": "alt_l"}, {"k": "press", "key": "x"})
         assert ev[0]["keys"] == ["ctrl", "alt", "x"]
 
     def test_tecla_desconhecida_e_soltar_nao_geram_nada(self):
@@ -83,6 +83,70 @@ class TestProcessor:
         t[0] = 102.0
         b = feed(p, {"k": "press", "key": "b"})[0]["ms"]
         assert (a, b) == (500, 2000)
+
+
+def real(key, canon="", kind="press"):
+    """Evento no formato REAL do Windows/pynput: `key` = o que a tecla produz; `canon` = a tecla-base física."""
+    return {"k": kind, "key": key, "canon": canon}
+
+
+def real_combo(mods, produced, canon):
+    return [*(real(m) for m in mods), real(produced, canon), real(produced, canon, "release"), *(real(m, kind="release") for m in reversed(mods))]
+
+
+class TestAtalhosEAcentuacao:
+    """Auditoria de TODOS os atalhos e da digitação com eventos no formato real (a regressão do Ctrl+Alt+R/AltGr/Shift)."""
+
+    def test_Ctrl_Alt_R_P_S_com_o_codigo_de_controle_que_o_Windows_envia(self):
+        p = Processor()
+        # com Ctrl pressionado o caractere produzido é um código de controle (\x12 = Ctrl+R); a letra vem do `canon`
+        assert [e["t"] for e in feed(p, *real_combo(["ctrl_l", "alt_l"], "\x12", "r"))] == ["stop"]
+        assert [e["t"] for e in feed(p, *real_combo(["ctrl_l", "alt_l"], "\x10", "p"))] == ["paused"] and p.paused
+        assert [e["t"] for e in feed(p, *real_combo(["ctrl_l", "alt_l"], "\x10", "p"))] == ["paused"] and not p.paused
+        assert [(e["t"], e["on"]) for e in feed(p, *real_combo(["ctrl_l", "alt_l"], "\x13", "s"))] == [("secret", True)]
+        assert [(e["t"], e["on"]) for e in feed(p, *real_combo(["ctrl_r", "alt_r"], "\x13", "s"))] == [("secret", False)]
+
+    def test_controles_funcionam_pausado_e_em_modo_senha_e_com_maiuscula(self):
+        p = Processor()
+        feed(p, *real_combo(["ctrl_l", "alt_l"], "\x10", "p"), *real_combo(["ctrl_l", "alt_l"], "\x13", "s"))
+        assert p.paused and p.secret
+        assert [e["t"] for e in feed(p, *real_combo(["ctrl_l", "alt_l", "shift"], "R", "R"))] == ["stop"]  # canon pode vir maiúsculo
+
+    def test_maiusculas_e_simbolos_com_shift_sao_gravados_como_digitados(self):
+        ev = feed(Processor(), real("shift_l"), real("A", "a"), real("shift_l", kind="release"), real("shift_l"), real("!", "1"), real("shift_l", kind="release"), real("c", "c"))
+        assert "".join(e["char"] for e in ev if e["t"] == "char") == "A!c"
+
+    def test_AltGr_no_ABNT2_digita_barra_e_interrogacao_em_vez_de_virar_atalho(self):
+        # AltGr+Q = "/" e AltGr+W = "?"; o Windows injeta também um ctrl_l falso
+        ev = feed(Processor(), real("ctrl_l"), real("alt_gr"), real("/", "q"), real("/", "q", "release"), real("?", "w"), real("alt_gr", kind="release"), real("ctrl_l", kind="release"))
+        assert [(e["t"], e.get("char")) for e in ev] == [("char", "/"), ("char", "?")]
+        assert all(e["t"] != "hotkey" for e in ev)
+
+    def test_AltGr_mais_R_nao_dispara_o_Parar(self):
+        p = Processor()
+        ev = feed(p, real("ctrl_l"), real("alt_gr"), real("₢", "r"))
+        assert [e["t"] for e in ev] == ["char"] and ev[0]["char"] == "₢"
+
+    def test_AltGr_em_modo_senha_nao_vaza_o_caractere(self):
+        p = Processor()
+        feed(p, *real_combo(["ctrl_l", "alt_l"], "\x13", "s"))
+        ev = feed(p, real("ctrl_l"), real("alt_gr"), real("/", "q"))
+        assert [e["t"] for e in ev] == ["secret_key"] and "/" not in json.dumps(ev)
+
+    def test_atalhos_comuns_usam_a_tecla_base(self):
+        ev = feed(Processor(), *real_combo(["ctrl_l"], "\x13", "s"), *real_combo(["ctrl_l"], "\x03", "c"), *real_combo(["ctrl_l", "shift_l"], "\x14", "t"), *real_combo(["cmd"], "r", "r"), *real_combo(["alt_l"], "x", "x"))
+        assert [e["keys"] for e in ev] == [["ctrl", "s"], ["ctrl", "c"], ["ctrl", "shift", "t"], ["win", "r"], ["alt", "x"]]
+
+    def test_teclas_especiais_e_enter_tab_esc_f_keys(self):
+        ev = feed(Processor(), real("enter"), real("tab"), real("esc"), real("f5"), real("up"), real("backspace"), real("delete"), real("page_down"))
+        assert [e["keys"][-1] for e in ev] == ["enter", "tab", "esc", "f5", "up", "backspace", "delete", "pagedown"]
+
+    def test_espaco_acentos_e_cedilha_digitados_diretamente(self):
+        ev = feed(Processor(), real("á", "a"), real("ç", "c"), real("space"), real("ã", "a"))
+        assert "".join(e["char"] for e in ev) == "áç ã"
+
+    def test_controle_sozinho_nao_vira_caractere_nem_atalho_vazio(self):
+        assert feed(Processor(), real("ctrl_l"), real("\x13", "")) == []  # sem tecla-base conhecida: ignora em vez de inventar
 
 
 class TestProcesso:

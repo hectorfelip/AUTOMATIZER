@@ -61,6 +61,18 @@ export function createRecorderService({ spawn, supported, onStatus, ignoreRects,
     }
   }
 
+  /** Escreve um comando no processo gravador SEM nunca lançar: se ele já terminou (ex.: parou pelo atalho Ctrl+Alt+R), é EPIPE e não é erro. */
+  function send(cmd: "stop" | "pause", c: ChildProcessWithoutNullStreams | null = child): boolean {
+    const stdin = c?.stdin;
+    if (!stdin || stdin.destroyed || !stdin.writable) return false;
+    try {
+      stdin.write(`${cmd}\n`);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   function handle(ev: RecEvent) {
     if (ev.t === "ready") {
       state = "recording";
@@ -79,7 +91,7 @@ export function createRecorderService({ spawn, supported, onStatus, ignoreRects,
     } else if (ev.t === "click" || ev.t === "char" || ev.t === "secret_key" || ev.t === "hotkey") {
       if (events.length >= LIMITS.maxEvents) {
         notice = `Limite de ${LIMITS.maxEvents} eventos atingido: a gravação foi parada.`;
-        child?.stdin.write("stop\n");
+        send("stop");
       } else {
         events.push(ev);
         arrivals.push(now());
@@ -106,6 +118,10 @@ export function createRecorderService({ spawn, supported, onStatus, ignoreRects,
       }
       if (buf.length > MAX_LINE) buf = "";
     });
+    // EPIPE (o processo terminou enquanto escrevíamos) chega como evento 'error' do stream; sem tratador derrubaria o app inteiro
+    c.stdin.on("error", () => undefined);
+    c.stdout.on("error", () => undefined);
+    c.stderr.on("error", () => undefined);
     c.stderr.on("data", () => undefined); // diagnóstico do Python: nunca vai para log (pode conter teclas)
     c.on("exit", () => {
       if (child === c) child = null;
@@ -156,7 +172,7 @@ export function createRecorderService({ spawn, supported, onStatus, ignoreRects,
     pause(): RecorderStatus {
       if (state !== "recording") throw new AppError("VALIDATION", "Não há gravação em andamento.");
       dropTrailingUiClick();
-      child?.stdin.write("pause\n");
+      send("pause");
       return status();
     },
 
@@ -169,7 +185,7 @@ export function createRecorderService({ spawn, supported, onStatus, ignoreRects,
         await new Promise<void>((resolve) => {
           const t = setTimeout(resolve, stopTimeoutMs);
           c.once("exit", () => (clearTimeout(t), resolve()));
-          c.stdin.write("stop\n");
+          if (!send("stop", c)) resolve(); // já terminou: nada a esperar
         });
       }
       kill();

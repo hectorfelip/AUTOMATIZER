@@ -19,6 +19,10 @@ Testes: 14 pytest (processador e processo), 11 de conversão, 9 do serviço, cri
 4. **Causa de uma flutuação de e2e (~30%):** operações nativas de janela (minimizar/restaurar/faixa) **travavam o processo principal no xvfb** (sem gerenciador de janelas). Ficam desligadas sob a flag de teste (0 falhas em 15 execuções). **Consequência:** essas três operações **não são exercitadas pelo e2e** — dependem da sua validação no Windows.
 5. Teto de 500 passos era ultrapassado por 1 (espera + clique): corrigido.
 
+## Achados do teste real no Windows (Hector) — corrigidos
+6. **`write EPIPE` derrubava o app ao parar com Ctrl+Alt+R:** o processo gravador termina sozinho com o atalho e o Main escrevia `stop` no `stdin` já fechado; o evento `error` do pipe não tinha tratador (uncaught exception). Agora toda escrita é protegida (`send()`), os streams têm tratador de `error`, e há testes (**mutação:** remover o tratador reproduz exatamente o `write EPIPE` do print).
+7. **Auditoria de todos os atalhos e da digitação** (eventos no formato real do Windows): o adaptador usava `canonical()` em **toda** tecla, o que gravaria "A" como "a" e "!" como "1"; e no teclado **ABNT2** `/` e `?` são **AltGr+Q/W** (o Windows reporta Ctrl+Alt falsos), então seriam gravados como atalhos — e AltGr+R poderia disparar "Parar". Agora o processador separa o **caractere produzido** da **tecla-base** (só esta vale para atalhos), trata AltGr como modificador próprio e o modo senha também não vaza caracteres via AltGr. Testes: Ctrl+Alt+R/P/S (códigos de controle reais, esquerdo/direito, com Shift, pausado, em modo senha), Shift+letra/símbolo, AltGr, acentos/cedilha, Ctrl+S/C/Shift+T, Win+R, Alt+X, Enter/Tab/Esc/F5/setas/Backspace/Delete/PageDown (24 testes; mutações em AltGr e em "caractere produzido" são pegas).
+
 ## Riscos / débitos
 Cliques por coordenada (frágeis com DPI); sem clique por elemento UIA; sem agrupamento de rolagem; texto com `{{ }}` digitado é recusado pelo validador (sem escape); `pynput` não empacotado no motor congelado; Ctrl+Alt+letra com `canonical()` não verificado no Windows.
 

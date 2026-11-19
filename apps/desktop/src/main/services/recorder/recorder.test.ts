@@ -162,6 +162,31 @@ describe("serviço do gravador", () => {
   });
 });
 
+describe("processo que já terminou (Ctrl+Alt+R): nada pode derrubar o app", () => {
+  it("EPIPE no stdin depois da parada pelo atalho não é exceção; parar segue funcionando", async () => {
+    const s = setup();
+    await begin(s);
+    s.f.send({ t: "click", x: 300, y: 300, button: "left", ms: 1 });
+    s.f.send({ t: "stop", ms: 5 }); // atalho global: o processo vai encerrar
+    await tick();
+    s.f.exit();
+    // o pipe quebra: sem tratador de 'error' isto seria uma exceção não capturada no Main (o erro do print do Hector)
+    const c = s.f.c as unknown as { stdin: { emit(e: string, err: Error): void } };
+    c.stdin.emit("error", Object.assign(new Error("write EPIPE"), { code: "EPIPE" }));
+    s.f.stdout.emit("error", Object.assign(new Error("read EPIPE"), { code: "EPIPE" }));
+    const steps = await s.svc.stop(); // a interface pede os passos DEPOIS do processo ter morrido
+    expect(steps.map((x) => x.kind)).toEqual(["click"]);
+  });
+
+  it("pausar e parar com o stdin já destruído não lançam", async () => {
+    const s = setup();
+    await begin(s);
+    (s.f.c as unknown as { stdin: { destroy(): void } }).stdin.destroy();
+    expect(() => s.svc.pause()).not.toThrow();
+    await expect(s.svc.stop()).resolves.toBeDefined();
+  });
+});
+
 describe("createFromRecording", () => {
   it("cria a automação (versão 1, sem executar) a partir dos passos; recusa passos inválidos sem deixar nada", async () => {
     const { openDatabase } = await import("../../database/db.js");
