@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { launch, newDataDir } from "./helpers";
+import { closeApp, launch, newDataDir } from "./helpers";
 
 test("abre como app desktop com dashboard e navegação lateral", async () => {
   const { app, page } = await launch(newDataDir());
@@ -124,4 +124,20 @@ test("renderer não tem acesso a Node e a API exposta é mínima", async () => {
   const bad = await page.evaluate(() => window.api.automations.create({ name: "" }));
   expect(bad).toMatchObject({ ok: false, error: { code: "VALIDATION" } });
   await app.close();
+});
+
+test("navegar para outro arquivo local ou site é bloqueado (o IPC só serve a página do app)", async () => {
+  const { app, page } = await launch(newDataDir());
+  await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
+  const home = page.url();
+  for (const target of ["file:///etc/hostname", "https://example.com/"]) {
+    await page.evaluate((u) => void (window.location.href = u), target).catch(() => undefined);
+    await page.waitForTimeout(400);
+    expect(page.url()).toBe(home);
+  }
+  // (o Playwright pode ficar "esperando navegação" por uma navegação que o app cancelou: lemos o DOM direto)
+  expect(await page.evaluate(() => document.body.innerText)).toContain("Dashboard");
+  const ok = await page.evaluate(async () => (await window.api.app.info()).ok);
+  expect(ok).toBe(true);
+  await closeApp(app);
 });

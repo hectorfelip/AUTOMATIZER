@@ -1,11 +1,26 @@
 import { BrowserWindow, dialog, shell } from "electron";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 
 /** URL do dev server (dev) ou null (produção, carrega arquivo local). */
 export const devServerUrl = process.env["ELECTRON_RENDERER_URL"] ?? null;
 
+/** Só a página do app (ignorando #hash e ?query) é confiável; outro arquivo local NÃO é. */
+export function matchesAppFile(url: string, indexFileUrl: string): boolean {
+  try {
+    const a = new URL(url);
+    const b = new URL(indexFileUrl);
+    return a.protocol === "file:" && a.pathname === b.pathname;
+  } catch {
+    return false;
+  }
+}
+
+const indexFileUrl = () => pathToFileURL(join(__dirname, "../renderer/index.html")).href;
+
 export function isTrustedUrl(url: string): boolean {
-  return devServerUrl ? url.startsWith(devServerUrl) : url.startsWith("file://");
+  if (devServerUrl) return url === devServerUrl || url.startsWith(devServerUrl.replace(/\/?$/, "/"));
+  return matchesAppFile(url, indexFileUrl());
 }
 
 export function createMainWindow(): BrowserWindow {
@@ -35,6 +50,10 @@ export function createMainWindow(): BrowserWindow {
   win.webContents.on("will-navigate", (e, url) => {
     if (!isTrustedUrl(url)) e.preventDefault();
   });
+  win.webContents.on("will-redirect", (e, url) => {
+    if (!isTrustedUrl(url)) e.preventDefault();
+  });
+  win.webContents.on("will-attach-webview", (e) => e.preventDefault()); // sem <webview>
   // Fechar a janela com alterações não salvas: o renderer bloqueia (beforeunload) e aqui o usuário decide.
   win.webContents.on("will-prevent-unload", (event) => {
     const choice = dialog.showMessageBoxSync(win, {
@@ -49,6 +68,7 @@ export function createMainWindow(): BrowserWindow {
     if (choice === 1) event.preventDefault(); // ignora o bloqueio: a janela fecha
   });
   win.webContents.session.setPermissionRequestHandler((_wc, _perm, cb) => cb(false));
+  win.webContents.session.setPermissionCheckHandler(() => false);
 
   if (devServerUrl) void win.loadURL(devServerUrl);
   else void win.loadFile(join(__dirname, "../renderer/index.html"));
