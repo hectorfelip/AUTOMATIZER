@@ -36,6 +36,19 @@ def diagnose_image(path: str, cfg: dict) -> None:
         print(f"[vision] melhor ponto: ({found.x},{found.y}) similaridade {found.similarity}. Se esse ponto não é o ícone, o recorte difere da tela (escala/DPI, tema, cursor, transparência).")
     else:
         print("[vision] o recorte é maior que a tela vista (confira região/escala).")
+    try:  # escala REAL do Windows (porcentagem) e resolução física, para comparar com a "tela vista" acima
+        import ctypes
+        import subprocess
+
+        pct = ctypes.windll.shcore.GetScaleFactorForDevice(0)  # type: ignore[attr-defined]
+        phys = subprocess.run([sys.executable, "-c", "import ctypes;u=ctypes.windll.user32;u.SetProcessDPIAware();print(u.GetSystemMetrics(0),u.GetSystemMetrics(1))"], capture_output=True, text=True, timeout=10).stdout.strip()
+        print(f"[vision] Windows: escala {pct}%, resolução física {phys} (a tela vista acima é o que o motor enxerga)")
+    except Exception as e:  # noqa: BLE001
+        print(f"[vision] não consegui ler a escala do Windows ({type(e).__name__})")
+    print("[vision] sonda de escala (fator aplicado ao recorte → melhor similaridade; 1.0 = recorte original):")
+    for f, sim in vi.scale_probe(shot, tpl):
+        print(f"[vision]   {f:5.3f} → {sim:.3f}")
+    print("[vision] Se algum fator ≠ 1.0 passar de ~0.8, o recorte foi feito em outra escala que a captura (DPI).")
     print(f"[vision] captura salva em {out} — abra e compare com o recorte (se estiver preta/vazia, o problema é a captura).")
 
 

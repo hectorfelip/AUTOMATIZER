@@ -137,6 +137,22 @@ def find_image(screen: Any, template: Template, threshold: float, tick: Callable
     return (best if best and best.similarity >= threshold else None), seen
 
 
+def scale_probe(screen: Any, template: Template, factors: tuple[float, ...] = (1.0, 0.8, 0.75, 0.667, 0.571, 0.5)) -> list[tuple[float, float]]:
+    """Diagnóstico de DPI: melhor similaridade com o recorte redimensionado por cada fator (0,8 = tela a 125%, 0,5 = 200%...).
+    Um fator ≠ 1 com similaridade alta confirma que o recorte foi feito em outra escala que a captura."""
+    Image, _, _ = _pil()
+    out = []
+    for f in factors:
+        w, h = max(1, round(template.width * f)), max(1, round(template.height * f))
+        try:
+            t = Template(template.img.resize((w, h), Image.LANCZOS))
+        except ActionError:
+            out.append((f, 0.0))
+            continue
+        out.append((f, find_image(screen, t, 0.0)[1]))
+    return out
+
+
 def load_template(path_value: str) -> Template:
     Image, _, _ = _pil()
     path = resolve_path(path_value, "Imagem de referência")

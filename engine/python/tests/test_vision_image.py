@@ -139,6 +139,18 @@ class TestMatching:
             vi.find_image(with_icon_at(10, 10), vi.Template(icon()), 0.9, tick)
 
 
+class TestScaleProbe:
+    def test_acusa_recorte_feito_em_outra_escala(self):
+        # a tela mostra o ícone a 80% (captura "virtualizada" de um Windows a 125%); o recorte está em 100%
+        big = icon(80, 64, seed=11)
+        screen = desktop()
+        screen.paste(big.resize((64, 51), Image.LANCZOS), (200, 120))
+        tpl = vi.Template(big)
+        assert vi.find_image(screen, tpl, 0.9)[0] is None  # a busca normal falha, como no print do Hector
+        probe = dict(vi.scale_probe(screen, tpl))
+        assert probe[0.8] > 0.7 and probe[1.0] < 0.4 and probe[0.5] < 0.4  # e a sonda diz QUAL escala casa
+
+
 class TestAction:
     def test_devolve_posicao_centro_e_similaridade(self, ref):
         vi.set_screen(FakeScreen([with_icon_at(120, 80)]))
