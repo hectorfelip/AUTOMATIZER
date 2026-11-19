@@ -50,6 +50,38 @@ export interface WorkflowSaveResult {
   savedAt: string;
 }
 
+/** Resumo mostrado ANTES de importar; o conteúdo só entra no banco após `importConfirm` (e nunca é executado). */
+export interface ImportPreview {
+  /** Referência ao conteúdo já validado, guardado no Main (o renderer nunca manda o fluxo de volta). */
+  token: string;
+  fileName: string;
+  name: string;
+  description: string;
+  exportedAt: string;
+  appVersion: string;
+  nodeCount: number;
+  edgeCount: number;
+  variableCount: number;
+  /** Tipos de nó usados, com contagem, já com o nome legível. */
+  nodes: { label: string; count: number }[];
+  errorPolicy: "stop" | "continue";
+  timeoutSeconds: number;
+  /** Problemas do fluxo (o editor mostra o resto). Importar é permitido; executar só sem erros. */
+  issues: { errors: number; warnings: number; first: string[] };
+  /** Usa ações que só funcionam no Windows. */
+  windowsOnly: boolean;
+}
+export interface ExportInput {
+  automationId: string;
+}
+/** `null` = o usuário cancelou o diálogo. */
+export interface ExportResult {
+  path: string;
+}
+export interface ImportConfirmInput {
+  token: string;
+  name?: string;
+}
 export interface AppInfo {
   version: string;
   dataPath: string;
@@ -110,7 +142,7 @@ export interface HistoryDiagnosticInput {
 }
 
 // ---- Resultado ----
-export type ErrorCode = "VALIDATION" | "NOT_FOUND" | "INVALID_DATA" | "ENGINE_UNAVAILABLE" | "EXECUTION_BUSY" | "UNTRUSTED_SENDER" | "INTERNAL";
+export type ErrorCode = "VALIDATION" | "NOT_FOUND" | "INVALID_DATA" | "ENGINE_UNAVAILABLE" | "EXECUTION_BUSY" | "IO_ERROR" | "UNTRUSTED_SENDER" | "INTERNAL";
 export type IpcResult<T> =
   | { ok: true; data: T }
   | { ok: false; error: { code: ErrorCode; message: string } };
@@ -139,6 +171,9 @@ export const IPC = {
   historyStats: "history:stats",
   historyClear: "history:clear",
   historyDiagnostic: "history:diagnostic",
+  exchangeExport: "exchange:export",
+  exchangeImportPreview: "exchange:import-preview",
+  exchangeImportConfirm: "exchange:import-confirm",
   settingsGet: "settings:get",
   settingsUpdate: "settings:update",
   appInfo: "app:info",
@@ -192,6 +227,14 @@ export interface DesktopApi {
     clear(input: ClearHistoryInput): Promise<IpcResult<{ deleted: number }>>;
     /** Captura de tela de uma entrada de log, como data URL (PNG). */
     diagnostic(input: HistoryDiagnosticInput): Promise<IpcResult<string>>;
+  };
+  exchange: {
+    /** Abre "Salvar como"; grava a versão salva do fluxo. */
+    exportWorkflow(input: ExportInput): Promise<IpcResult<ExportResult | null>>;
+    /** Abre "Abrir arquivo", valida e devolve o resumo. Não cria nada. */
+    importPreview(): Promise<IpcResult<ImportPreview | null>>;
+    /** Cria a automação (versão 1) a partir da prévia. Nunca executa. */
+    importConfirm(input: ImportConfirmInput): Promise<IpcResult<Automation>>;
   };
   settings: {
     get(): Promise<IpcResult<AppSettings>>;

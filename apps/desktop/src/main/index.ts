@@ -1,5 +1,6 @@
-import { app, BrowserWindow, desktopCapturer, ipcMain, screen } from "electron";
-import { join, resolve } from "node:path";
+import { app, BrowserWindow, desktopCapturer, dialog, ipcMain, screen } from "electron";
+import { readFileSync, statSync, writeFileSync } from "node:fs";
+import { basename, join, resolve } from "node:path";
 import { PUSH } from "@automation-studio/shared-types";
 import { openDatabase } from "./database/db.js";
 import { registerIpc } from "./ipc/register.js";
@@ -7,6 +8,7 @@ import { EngineClient } from "./services/engine/client.js";
 import { resolveEngineLaunch } from "./services/engine/launch.js";
 import { createDiagnostics } from "./services/diagnostics.js";
 import { createHistoryService } from "./services/history.js";
+import { createExchangeService } from "./services/exchange.js";
 import { createExecutionManager } from "./services/executions.js";
 import { createAutomationService } from "./services/automations.js";
 import { createTemplatesService } from "./services/templates.js";
@@ -72,7 +74,32 @@ if (!app.requestSingleInstanceLock()) {
       captureDiagnostic: (executionId, nodeId) =>
         diagnostics.capture(executionId, nodeId),
     });
+    const exchange = createExchangeService({
+      automations,
+      workflows,
+      appVersion: app.getVersion(),
+      io: {
+        // o diálogo é nativo e só o Main o abre; o renderer nunca informa caminhos
+        pickSavePath: async (defaultName) => {
+          const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
+          const opts = { title: "Exportar fluxo", defaultPath: defaultName, filters: [{ name: "Fluxo do Automation Studio", extensions: ["json"] }] };
+          const r = win ? await dialog.showSaveDialog(win, opts) : await dialog.showSaveDialog(opts);
+          return r.canceled || !r.filePath ? null : r.filePath;
+        },
+        pickOpenPath: async () => {
+          const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
+          const opts = { title: "Importar fluxo", properties: ["openFile" as const], filters: [{ name: "Fluxo do Automation Studio", extensions: ["json"] }] };
+          const r = win ? await dialog.showOpenDialog(win, opts) : await dialog.showOpenDialog(opts);
+          return r.canceled || !r.filePaths[0] ? null : r.filePaths[0];
+        },
+        statSize: (p) => statSync(p).size,
+        readText: (p) => readFileSync(p, "utf8"),
+        writeText: (p, t) => writeFileSync(p, t, "utf8"),
+        baseName: (p) => basename(p),
+      },
+    });
     registerIpc(ipcMain, {
+      exchange,
       templates: createTemplatesService({ automations, workflows }),
       engine,
       executions,

@@ -5,6 +5,8 @@ import {
   cancelExecutionSchema,
   createAutomationSchema,
   createFromTemplateSchema,
+  exportSchema,
+  importConfirmSchema,
   historyClearSchema,
   historyDiagnosticSchema,
   historyFiltersSchema,
@@ -23,6 +25,7 @@ import {
 } from "@automation-studio/shared-types";
 import type { AutomationService } from "../services/automations.js";
 import { AppError } from "../services/errors.js";
+import type { ExchangeService } from "../services/exchange.js";
 import type { ExecutionManager } from "../services/executions.js";
 import type { Diagnostics } from "../services/diagnostics.js";
 import type { HistoryService } from "../services/history.js";
@@ -48,6 +51,7 @@ export interface IpcDeps {
   engine: { readonly status: EngineStatus };
   executions: ExecutionManager;
   history: HistoryService;
+  exchange: ExchangeService;
   diagnostics: Diagnostics;
   templates: TemplatesService;
   appInfo: AppInfo;
@@ -57,39 +61,26 @@ export interface IpcDeps {
 }
 
 export function registerIpc(ipc: IpcMainLike, deps: IpcDeps): void {
-  const route = <S extends z.ZodType, R>(
-    channel: string,
-    schema: S,
-    run: (input: z.output<S>) => R,
-  ) =>
-    ipc.handle(channel, (event, ...args): IpcResult<R> => {
+  const fail = (err: unknown): IpcResult<never> => {
+    if (err instanceof AppError) return { ok: false, error: { code: err.code, message: err.message } };
+    deps.onError?.(err); // detalhe técnico fica no log, não vai para a UI
+    return { ok: false, error: { code: "INTERNAL", message: "Ocorreu um erro inesperado. Tente novamente." } };
+  };
+  /** Handlers podem ser síncronos ou assíncronos (diálogos nativos); a resposta é sempre `{ ok, data | error }`. */
+  const route = <S extends z.ZodType, R>(channel: string, schema: S, run: (input: z.output<S>) => R) =>
+    ipc.handle(channel, (event, ...args): IpcResult<Awaited<R>> | Promise<IpcResult<Awaited<R>>> => {
       try {
         if (!deps.isTrustedUrl(event.senderFrame?.url ?? "")) {
-          throw new AppError(
-            "UNTRUSTED_SENDER",
-            "Origem da requisição não é confiável.",
-          );
+          throw new AppError("UNTRUSTED_SENDER", "Origem da requisição não é confiável.");
         }
-        if (args.length > 1)
-          throw new AppError("VALIDATION", "Argumentos inesperados.");
+        if (args.length > 1) throw new AppError("VALIDATION", "Argumentos inesperados.");
         const parsed = schema.safeParse(args[0]);
-        if (!parsed.success)
-          throw new AppError(
-            "VALIDATION",
-            parsed.error.issues[0]?.message ?? "Dados inválidos.",
-          );
-        return { ok: true, data: run(parsed.data) };
+        if (!parsed.success) throw new AppError("VALIDATION", parsed.error.issues[0]?.message ?? "Dados inválidos.");
+        const out = run(parsed.data);
+        if (out instanceof Promise) return out.then((data): IpcResult<Awaited<R>> => ({ ok: true, data: data as Awaited<R> }), fail);
+        return { ok: true, data: out as Awaited<R> };
       } catch (err) {
-        if (err instanceof AppError)
-          return { ok: false, error: { code: err.code, message: err.message } };
-        deps.onError?.(err); // detalhe técnico fica no log, não vai para a UI
-        return {
-          ok: false,
-          error: {
-            code: "INTERNAL",
-            message: "Ocorreu um erro inesperado. Tente novamente.",
-          },
-        };
+        return fail(err);
       }
     });
 
@@ -162,6 +153,9 @@ export function registerIpc(ipc: IpcMainLike, deps: IpcDeps): void {
       );
     return `data:image/png;base64,${png.toString("base64")}`;
   });
+  route(IPC.exchangeExport, exportSchema, (i) => deps.exchange.exportWorkflow(i.automationId));
+  route(IPC.exchangeImportPreview, noInputSchema, () => deps.exchange.importPreview());
+  route(IPC.exchangeImportConfirm, importConfirmSchema, (i) => deps.exchange.importConfirm(i.token, i.name));
   route(IPC.settingsGet, noInputSchema, () => settings.get());
   route(IPC.settingsUpdate, settingsPatchSchema, (p) => settings.update(p));
   route(IPC.appInfo, noInputSchema, () => deps.appInfo);

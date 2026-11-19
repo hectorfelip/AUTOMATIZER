@@ -147,10 +147,10 @@ Desenvolver em entregas verticais. Cada fase deve terminar com algo executável 
 ## Fase 6a — Importação e exportação (MVP)
 
 ### Tarefas
-- [ ] Exportar workflow JSON.
-- [ ] Importar com validação.
-- [ ] Mostrar resumo do conteúdo importado.
-- [ ] Rejeitar schemas desconhecidos ou inválidos.
+- [x] Exportar workflow JSON.
+- [x] Importar com validação.
+- [x] Mostrar resumo do conteúdo importado.
+- [x] Rejeitar schemas desconhecidos ou inválidos.
 
 ### Critérios de aceite
 - Fluxo exportado pode ser importado em outra instalação compatível.

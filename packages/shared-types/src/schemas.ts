@@ -43,6 +43,8 @@ export const historyGetSchema = z.strictObject({ executionId: idSchema });
 export const historyStatsSchema = z.strictObject({ sinceDays: z.number().int().min(1).max(3650).optional() });
 export const historyClearSchema = z.strictObject({ olderThanDays: z.number().int().min(0).max(3650).optional() });
 export const historyDiagnosticSchema = z.strictObject({ executionId: idSchema, seq: z.number().int().min(1) });
+export const exportSchema = z.strictObject({ automationId: idSchema });
+export const importConfirmSchema = z.strictObject({ token: idSchema, name: nameSchema.optional() });
 export const noInputSchema = z.undefined();
 
 // Trava de compilação: os tipos de entrada em ipc.ts precisam aceitar o que os schemas aceitam.

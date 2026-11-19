@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { IPC, type IpcResult } from "@automation-studio/shared-types";
+import { AppError } from "../services/errors.js";
 import { openDatabase } from "../database/db.js";
 import { createAutomationService } from "../services/automations.js";
 import { createDiagnostics } from "../services/diagnostics.js";
 import { createHistoryService } from "../services/history.js";
+import { createExchangeService } from "../services/exchange.js";
 import { createExecutionManager } from "../services/executions.js";
 import { createTemplatesService } from "../services/templates.js";
 import { createSettingsService } from "../services/settings.js";
@@ -35,6 +37,7 @@ beforeEach(() => {
       appInfo: { version: "0.0.0", dataPath: "/x" },
       engine: { status: { state: "unavailable", reason: "teste" } },
       history,
+      exchange: createExchangeService({ automations, workflows, appVersion: "0", io: { pickSavePath: async () => null, pickOpenPath: async () => null, statSize: () => 0, readText: () => "", writeText: () => undefined, baseName: (p) => p } }),
       diagnostics: createDiagnostics({ baseDir: "/tmp/as-diag-test", capture: async () => null }),
       executions: createExecutionManager({ engine: { status: { state: "unavailable", reason: "teste" }, executeAction: async () => ({ kind: "cancelled" }), cancel: () => undefined }, emit: () => undefined, history, workflows }),
       isTrustedUrl: (u) => u.startsWith("file://"),
@@ -67,6 +70,10 @@ describe("IPC", () => {
     ["tipo errado", IPC.automationsCreate, ["texto"]],
     ["sem argumento", IPC.automationsRename, []],
     ["argumento extra", IPC.automationsDelete, [{ id: "a" }, "outro"]],
+    ["exportar sem id", IPC.exchangeExport, [{}]],
+    ["exportar com caminho (renderer não escolhe caminho)", IPC.exchangeExport, [{ automationId: "a", path: "/etc/passwd" }]],
+    ["confirmar sem token", IPC.exchangeImportConfirm, [{}]],
+    ["importar com caminho (renderer não escolhe caminho)", IPC.exchangeImportPreview, [{ path: "/etc/passwd" }]],
     ["tema inválido", IPC.settingsUpdate, [{ theme: "roxo" }]],
     ["captura não booleana", IPC.settingsUpdate, [{ captureDiagnostics: "sim" }]],
     ["execução sem automação", IPC.executionsStart, [{ document: {} }]],
@@ -111,6 +118,7 @@ describe("IPC", () => {
         engine: { status: { state: "starting" } },
         executions: {} as never,
         history: {} as never,
+        exchange: {} as never,
         diagnostics: {} as never,
         templates: {} as never,
         isTrustedUrl: () => true,
@@ -190,5 +198,34 @@ describe("IPC", () => {
       expect(call(ch, [{ executionId: "x" }])).toMatchObject({ ok: false, error: { code: "NOT_FOUND" } });
     }
     expect(call(IPC.executionsBreakpoints, [{ executionId: "x", nodeIds: [] }])).toMatchObject({ ok: false, error: { code: "NOT_FOUND" } });
+  });
+
+  it("handlers assíncronos (diálogos) respondem { ok, data | error }, nunca uma Promise dentro de data", async () => {
+    const ok = call(IPC.exchangeImportPreview) as unknown as Promise<unknown>;
+    expect(ok).toBeInstanceOf(Promise);
+    expect(await ok).toEqual({ ok: true, data: null }); // diálogo cancelado
+    handlers.clear();
+    registerIpc(
+      { handle: (c, l) => void handlers.set(c, l) },
+      {
+        automations: {} as never, settings: {} as never, workflows: {} as never, appInfo: { version: "0", dataPath: "" }, engine: { status: { state: "starting" } },
+        executions: {} as never, history: {} as never, diagnostics: {} as never, templates: {} as never,
+        exchange: {
+          importPreview: async () => {
+            throw new AppError("VALIDATION", "arquivo ruim");
+          },
+          exportWorkflow: async () => {
+            throw new Error("disco /segredo falhou");
+          },
+        } as never,
+        isTrustedUrl: () => true,
+        onError: (e) => errors.push(e),
+      },
+    );
+    expect(await (call(IPC.exchangeImportPreview) as unknown as Promise<unknown>)).toEqual({ ok: false, error: { code: "VALIDATION", message: "arquivo ruim" } });
+    const r = await (call(IPC.exchangeExport, [{ automationId: "a" }]) as unknown as Promise<unknown>);
+    expect(r).toMatchObject({ ok: false, error: { code: "INTERNAL" } });
+    expect(JSON.stringify(r)).not.toContain("segredo");
+    expect(errors).toHaveLength(1);
   });
 });

@@ -1,10 +1,11 @@
 import { useState } from "react";
-import type { Automation } from "@automation-studio/shared-types";
+import type { Automation, ImportPreview } from "@automation-studio/shared-types";
 import { Badge } from "../../components/ui/Badge";
 import { Button } from "../../components/ui/Button";
 import { Dialog } from "../../components/ui/Dialog";
-import { errorMessage } from "../../lib/api";
+import { errorMessage, unwrap } from "../../lib/api";
 import { useAutomations } from "../../stores/automations";
+import { ImportDialog } from "./ImportDialog";
 import { NameDialog } from "./NameDialog";
 import { TemplateDialog } from "./TemplateDialog";
 
@@ -17,6 +18,8 @@ export function AutomationsPage({ openCreate = false, onOpen }: { openCreate?: b
   const [tab, setTab] = useState<"active" | "archived">("active");
   const [dialog, setDialog] = useState<Dlg>(openCreate ? { kind: "create" } : null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [preview, setPreview] = useState<ImportPreview | null>(null);
 
   const shown = items.filter((a) => a.status === tab);
   const count = (s: Automation["status"]) => items.filter((a) => a.status === s).length;
@@ -31,11 +34,24 @@ export function AutomationsPage({ openCreate = false, onOpen }: { openCreate?: b
     }
   };
 
+  const startImport = () =>
+    void run(async () => {
+      setNotice(null);
+      setPreview(await unwrap((a) => a.exchange.importPreview())); // null = o usuário cancelou o diálogo
+    });
+  const exportOne = (a: Automation) =>
+    void run(async () => {
+      setNotice(null);
+      const res = await unwrap((api) => api.exchange.exportWorkflow({ automationId: a.id }));
+      if (res) setNotice(`“${a.name}” exportada para ${res.path}.`);
+    });
+
   return (
     <section className="flex flex-col gap-4">
       <header className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Automações</h1>
         <div className="flex gap-2">
+          <Button onClick={startImport}>Importar…</Button>
           <Button onClick={() => setDialog({ kind: "template" })}>Novo a partir de exemplo</Button>
           <Button variant="primary" onClick={() => setDialog({ kind: "create" })}>
             Nova automação
@@ -58,6 +74,11 @@ export function AutomationsPage({ openCreate = false, onOpen }: { openCreate?: b
             Tentar novamente
           </Button>
         </div>
+      )}
+      {notice && (
+        <p role="status" data-testid="exchange-notice" className="rounded-md border border-line p-3 text-sm">
+          {notice}
+        </p>
       )}
       {actionError && (
         <p role="alert" className="rounded-md border border-danger p-3 text-danger">
@@ -85,6 +106,9 @@ export function AutomationsPage({ openCreate = false, onOpen }: { openCreate?: b
             <div className="flex gap-2">
               <Button size="sm" variant="primary" aria-label={`Abrir ${a.name}`} onClick={() => onOpen(a.id)}>
                 Abrir
+              </Button>
+              <Button size="sm" aria-label={`Exportar ${a.name}`} onClick={() => exportOne(a)}>
+                Exportar
               </Button>
               <Button size="sm" aria-label={`Renomear ${a.name}`} onClick={() => setDialog({ kind: "rename", item: a })}>
                 Renomear
@@ -117,6 +141,7 @@ export function AutomationsPage({ openCreate = false, onOpen }: { openCreate?: b
         }
       />
 
+      <ImportDialog preview={preview} onClose={() => setPreview(null)} onImported={(n) => setNotice(`“${n}” importada. Ela não foi executada; abra e revise antes de rodar.`)} />
       <TemplateDialog open={dialog?.kind === "template"} onClose={close} onCreated={onOpen} />
 
       <Dialog open={dialog?.kind === "delete"} title="Excluir automação" onClose={close}>

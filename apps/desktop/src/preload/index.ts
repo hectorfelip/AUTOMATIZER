@@ -48,6 +48,11 @@ const api: DesktopApi = {
     clear: (input) => ipcRenderer.invoke(IPC.historyClear, input),
     diagnostic: (input) => ipcRenderer.invoke(IPC.historyDiagnostic, input),
   },
+  exchange: {
+    exportWorkflow: (input) => ipcRenderer.invoke(IPC.exchangeExport, input),
+    importPreview: () => ipcRenderer.invoke(IPC.exchangeImportPreview),
+    importConfirm: (input) => ipcRenderer.invoke(IPC.exchangeImportConfirm, input),
+  },
   settings: {
     get: () => ipcRenderer.invoke(IPC.settingsGet),
     update: (patch) => ipcRenderer.invoke(IPC.settingsUpdate, patch),
