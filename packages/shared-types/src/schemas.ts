@@ -56,6 +56,9 @@ export const createScheduleSchema = z.strictObject({ automationId: idSchema, con
 export const updateScheduleSchema = z.strictObject({ id: idSchema, config: scheduleConfigSchema });
 export const scheduleIdSchema = z.strictObject({ id: idSchema });
 export const setScheduleEnabledSchema = z.strictObject({ id: idSchema, enabled: z.boolean() });
+export const pluginIdSchema = z.strictObject({ id: z.string().regex(/^[a-z][a-z0-9-]{1,39}$/) });
+export const pluginConfirmSchema = z.strictObject({ token: idSchema });
+export const setPluginEnabledSchema = z.strictObject({ id: z.string().regex(/^[a-z][a-z0-9-]{1,39}$/), enabled: z.boolean() });
 export const noInputSchema = z.undefined();
 
 // Trava de compilação: os tipos de entrada em ipc.ts precisam aceitar o que os schemas aceitam.

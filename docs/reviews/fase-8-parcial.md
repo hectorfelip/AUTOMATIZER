@@ -21,3 +21,12 @@ Ciclo e profundidade limitados; fluxo chamado revalidado (nunca roda inválido) 
 
 ## Débitos
 Renomear variável do chamado quebra chamadores (sem análise de impacto); ciclos só em execução; exportar não leva os chamados; todas as variáveis do chamado voltam.
+
+## Adendo — plugins declarativos (ADR 0014, opção A)
+| Critério | Estado | Evidência |
+|---|---|---|
+| Definir API de plugins / documentar novos nós | ✅ (declarativo) | `docs/PLUGINS.md` + exemplo validado em teste |
+| Plugins validados e carregados de forma controlada | ✅ (declarativo) | Parser estrito (`strictObject`), só nós embutidos, sem plugin-em-plugin nem "Chamar fluxo", fluxo interno validado; instalação manual com resumo e token de uso único; ativar/desativar/remover; corrompido no banco é ignorado |
+Testes: 7 grupos de validação (incluindo tentativas de burlar), execução do nó com campos/retornos/padrões, não sobrepor embutidos, serviço (prévia/confirmação/substituição/expiração), IPC (renderer não envia conteúdo nem caminho), e2e (instalar, usar, executar, desativar, reiniciar, remover, recusar 7 plugins maliciosos/inválidos).
+**Bug real achado pelo e2e:** `parsePlugin` usava `Buffer` (Node) e quebrava no renderer; trocado por `TextEncoder`.
+**Opção B (código) e OCR/visão continuam não feitos.** Débito: exportar uma automação não leva os plugins que ela usa.

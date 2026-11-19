@@ -1,0 +1,103 @@
+{
+  "format": "automation-studio.plugin",
+  "formatVersion": 1,
+  "id": "saudacao",
+  "name": "Montar saudação",
+  "version": "1.0.0",
+  "description": "Monta uma frase de saudação com nome e idade.",
+  "fields": [
+    {
+      "key": "nome",
+      "label": "Nome",
+      "kind": "text",
+      "required": true,
+      "help": "Quem será cumprimentado."
+    },
+    {
+      "key": "idade",
+      "label": "Idade",
+      "kind": "number"
+    }
+  ],
+  "returns": [
+    "saudacao"
+  ],
+  "flow": {
+    "schemaVersion": 1,
+    "id": "plugin",
+    "name": "interno",
+    "nodes": [
+      {
+        "id": "start",
+        "type": "trigger.manual",
+        "version": 1,
+        "config": {}
+      },
+      {
+        "id": "montar",
+        "type": "data.set_variable",
+        "version": 1,
+        "config": {
+          "name": "saudacao",
+          "value": "Olá, {{variables.nome}}! Você tem {{variables.idade}} anos."
+        }
+      },
+      {
+        "id": "fim",
+        "type": "flow.end",
+        "version": 1,
+        "config": {}
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "start",
+        "sourceHandle": "next",
+        "target": "montar",
+        "targetHandle": "input"
+      },
+      {
+        "id": "e2",
+        "source": "montar",
+        "sourceHandle": "next",
+        "target": "fim",
+        "targetHandle": "input"
+      }
+    ],
+    "variables": {
+      "nome": {
+        "type": "string",
+        "value": "mundo"
+      },
+      "idade": {
+        "type": "number",
+        "value": 18
+      },
+      "saudacao": {
+        "type": "string",
+        "value": ""
+      }
+    },
+    "settings": {
+      "timeoutSeconds": 60,
+      "errorPolicy": "stop"
+    },
+    "visual": {
+      "positions": {
+        "start": {
+          "x": 0,
+          "y": 0
+        },
+        "montar": {
+          "x": 250,
+          "y": 0
+        },
+        "fim": {
+          "x": 500,
+          "y": 0
+        }
+      }
+    }
+  }
+}

@@ -236,3 +236,58 @@ describe("Chamar fluxo (subfluxo)", () => {
     expect(events.some((e) => e.type === "node_started" && e.nodeId === "a/b/s")).toBe(true);
   });
 });
+
+describe("nó de plugin declarativo (ADR 0014)", () => {
+  async function withPlugin(fn: () => Promise<void>) {
+    const { parsePlugin } = await import("@automation-studio/workflow-validator");
+    const { setPluginNodes } = await import("@automation-studio/node-registry");
+    const inner = flow("p", "interno", [["s", "data.set_variable", { name: "saudacao", value: "Olá, {{variables.nome}}!" }]], { nome: { type: "string", value: "mundo" }, saudacao: { type: "string", value: "" } });
+    const r = parsePlugin(JSON.stringify({ format: "automation-studio.plugin", formatVersion: 1, id: "saudacao", name: "Montar saudação", version: "1.0.0", description: "d", fields: [{ key: "nome", label: "Nome", kind: "text" }], returns: ["saudacao"], flow: inner }));
+    if (!r.ok) throw new Error(r.message);
+    setPluginNodes([r.node]);
+    try {
+      await fn();
+    } finally {
+      setPluginNodes([]);
+    }
+  }
+  const useIt = (cfg: Record<string, ConfigValue>) =>
+    flow("main", "P", [["pl", "plugin.saudacao", cfg], ["guarda", "data.set_variable", { name: "r", value: "{{nodes.pl.saudacao}}" }]], { r: { type: "string", value: "" }, quem: { type: "string", value: "Hector" } });
+
+  it("executa o fluxo interno com os campos como variáveis e devolve os retornos como resultados do nó", async () => {
+    await withPlugin(async () => {
+      const { result, events } = run(useIt({ nome: "{{variables.quem}}" }));
+      const res = await result;
+      expect(res.status).toBe("completed");
+      expect(res.variables?.["r"]).toBe("Olá, Hector!");
+      expect(events.some((e) => e.type === "node_started" && e.nodeId === "pl/s")).toBe(true);
+      const lbl = events.find((e) => e.type === "node_started" && e.nodeId === "pl/s") as Extract<ExecutionEvent, { type: "node_started" }>;
+      expect(lbl.label).toBe("Montar saudação › Definir variável");
+    });
+  });
+
+  it("campo vazio usa o padrão do fluxo interno", async () => {
+    await withPlugin(async () => {
+      expect((await run(useIt({})).result).variables?.["r"]).toBe("Olá, mundo!");
+    });
+  });
+
+  it("plugin desativado/removido: o fluxo que o usa NÃO executa (tipo de nó desconhecido), sem exceção", async () => {
+    let main!: WorkflowDocument;
+    await withPlugin(async () => {
+      main = useIt({}); // montado com o plugin ativo...
+    });
+    const res = await run(main).result; // ...e executado depois de ele sair do registro
+    expect(res).toMatchObject({ status: "failed", error: { code: "INVALID_WORKFLOW" } });
+    expect(res.error?.message).toContain("plugin.saudacao");
+  });
+
+  it("não pode sobrepor nó embutido nem usar outro prefixo", async () => {
+    const { setPluginNodes, getNodeDefinition } = await import("@automation-studio/node-registry");
+    const fake = { ...getNodeDefinition("flow.wait")!, type: "flow.wait", label: "Falso" };
+    const fake2 = { ...getNodeDefinition("flow.wait")!, type: "meu.no", label: "Falso2" };
+    setPluginNodes([fake, fake2]);
+    expect(getNodeDefinition("flow.wait")!.label).not.toBe("Falso");
+    expect(getNodeDefinition("meu.no")).toBeUndefined();
+  });
+});

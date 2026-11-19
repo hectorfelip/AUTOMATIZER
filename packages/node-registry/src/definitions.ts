@@ -7,6 +7,7 @@ export const CATEGORIES: { id: CategoryId; label: string }[] = [
   { id: "windows", label: "Janelas e aplicativos" },
   { id: "input", label: "Mouse e teclado" },
   { id: "web", label: "Navegador" },
+  { id: "plugins", label: "Plugins" },
 ];
 
 const IN: Port[] = [{ id: "input", label: "Entrada" }];

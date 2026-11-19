@@ -1,6 +1,7 @@
-import { CATEGORIES, NODE_DEFINITIONS } from "@automation-studio/node-registry";
+import { CATEGORIES, allNodeDefinitions } from "@automation-studio/node-registry";
 import { useState } from "react";
 import { currentDoc, useEditor } from "../../stores/editor";
+import { usePlugins } from "../../stores/plugins";
 import { useAddNode } from "./useAddNode";
 
 export const DND_MIME = "application/x-automation-node";
@@ -9,6 +10,7 @@ export function NodePalette() {
   const doc = useEditor(currentDoc)!;
   const add = useAddNode();
   const [query, setQuery] = useState("");
+  usePlugins((st) => st.version); // reexibe quando plugins mudam
   const q = query.trim().toLowerCase();
 
   return (
@@ -23,7 +25,7 @@ export function NodePalette() {
       />
       <p className="text-xs text-muted">Arraste para o canvas ou clique para adicionar.</p>
       {CATEGORIES.map((c) => {
-        const items = NODE_DEFINITIONS.filter((d) => d.category === c.id && (!q || d.label.toLowerCase().includes(q)));
+        const items = allNodeDefinitions().filter((d) => d.category === c.id && (!q || d.label.toLowerCase().includes(q)));
         if (items.length === 0) return null;
         return (
           <section key={c.id} aria-label={c.label}>

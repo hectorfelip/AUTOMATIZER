@@ -198,12 +198,12 @@ Só inicia após a Fase 6a aceita; não bloqueia o MVP.
 - [ ] Implementar localizar texto na tela.
 - [ ] Implementar localizar imagem de referência.
 - [ ] Implementar espera por elemento visual.
-- [ ] Definir API de plugins de ações.
-- [ ] Documentar criação de novos nós.
+- [x] Definir API de plugins de ações. *(declarativa, sem código — ADR 0014 opção A; opção B não feita)*
+- [x] Documentar criação de novos nós. *(`docs/PLUGINS.md`)*
 - [x] Criar subfluxos reutilizáveis. *(ADR 0013)*
 - [x] Criar biblioteca de templates. *(7 exemplos embutidos; "formato final do pacote" segue aberto — ARCHITECTURE §15)*
 
-> **Pendentes (dependem de decisão/protótipo no Windows):** OCR, localizar texto/imagem na tela, espera por elemento visual, API de plugins e sua documentação. Critérios "ações visuais com timeout e limiar" e "plugins validados e carregados de forma controlada" **não atendidos**.
+> **Pendentes (dependem de decisão/protótipo no Windows):** OCR, localizar texto/imagem na tela e espera por elemento visual (ADR 0015, `scripts/spike-ocr.py`). Critério "ações visuais com timeout e limiar" **não atendido**. "Plugins validados e carregados de forma controlada" **atendido para plugins declarativos** (validação estrita, importação manual com resumo, ativar/desativar/remover).
 
 ### Critérios de aceite
 - Ações visuais têm timeout e limiar de confiança configuráveis.

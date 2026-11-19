@@ -266,6 +266,11 @@ export async function runWorkflow(doc: WorkflowDocument, opts: RunOptions): Prom
       args[name] = v as Scalar;
     }
 
+    return finishNested(await runNested(found, args, node, targetId, stack), found.name, false);
+  };
+
+  /** Executa um fluxo DENTRO deste (subfluxo ou plugin): eventos com prefixo, mesmo cancelamento, prazos e controle de pausa. */
+  const runNested = (found: { doc: WorkflowDocument; name: string }, args: Record<string, Scalar>, node: WorkflowNode, stackId: string, stack: string[] = opts.nest?.callStack ?? [doc.id]): Promise<RunResult> => {
     const wrap = (e: ExecutionEvent): void => {
       if (e.type === "execution_started" || e.type === "execution_finished") return; // o fluxo de fora é quem começa e termina
       const named = "nodeId" in e && typeof e.nodeId === "string" ? { ...e, nodeId: `${node.id}/${e.nodeId}` } : e;
@@ -273,7 +278,7 @@ export async function runWorkflow(doc: WorkflowDocument, opts: RunOptions): Prom
       else if (named.type === "execution_paused") emit({ ...named, label: `${found.name} › ${named.label}` });
       else emit(named);
     };
-    const inner = await runWorkflow(found.doc, {
+    return runWorkflow(found.doc, {
       executionId,
       executor,
       onEvent: wrap,
@@ -282,20 +287,37 @@ export async function runWorkflow(doc: WorkflowDocument, opts: RunOptions): Prom
       now,
       variables: args,
       subflows: opts.subflows,
-      nest: { prefix: opts.nest ? `${opts.nest.prefix}/${node.id}` : node.id, calleeName: found.name, callStack: [...stack, targetId], pauseWith: [...(opts.nest?.pauseWith ?? []), dl] },
+      nest: { prefix: opts.nest ? `${opts.nest.prefix}/${node.id}` : node.id, calleeName: found.name, callStack: [...stack, stackId], pauseWith: [...(opts.nest?.pauseWith ?? []), dl] },
     });
+  };
+
+  /** Resultado do fluxo aninhado → resultado do nó que o chamou. `flat`: plugins expõem os retornos direto (`{{nodes.id.total}}`). */
+  const finishNested = (inner: RunResult, name: string, flat: boolean, returns: string[] = []): ActionOutcome => {
     if (inner.status === "cancelled") return { kind: "cancelled" };
     if (inner.status === "failed") {
       const where = inner.failedNodeId ? ` (nó ${inner.failedNodeId})` : "";
       const code = inner.error?.code ?? "SUBFLOW_FAILED";
-      return { kind: "failed", error: { code: isContinuable(code) ? "SUBFLOW_FAILED" : code, message: `O fluxo “${found.name}” falhou${where}: ${inner.error?.message ?? "erro desconhecido"}`, ...(inner.error?.details ? { details: inner.error.details } : {}) } };
+      return { kind: "failed", error: { code: isContinuable(code) ? "SUBFLOW_FAILED" : code, message: `O fluxo “${name}” falhou${where}: ${inner.error?.message ?? "erro desconhecido"}`, ...(inner.error?.details ? { details: inner.error.details } : {}) } };
     }
     if (inner.status === "completed_with_warnings") warnings++;
-    return {
-      kind: "completed",
-      outputs: { outputs: { ...(inner.variables ?? {}) }, status: inner.status },
-      message: `Fluxo “${found.name}” ${inner.status === "completed_with_warnings" ? "concluído com avisos" : "concluído"}.`,
-    };
+    const vars = inner.variables ?? {};
+    const outputs = flat ? { ...Object.fromEntries(returns.map((k) => [k, vars[k] as Scalar])), status: inner.status } : { outputs: { ...vars }, status: inner.status };
+    return { kind: "completed", outputs, message: `${flat ? "Plugin" : "Fluxo"} “${name}” ${inner.status === "completed_with_warnings" ? "concluído com avisos" : "concluído"}.` };
+  };
+
+  /** Nó de plugin declarativo (ADR 0014): roda o fluxo interno com os campos como variáveis. */
+  const callPlugin = async (node: WorkflowNode, def: NodeDefinition): Promise<ActionOutcome> => {
+    const stack = opts.nest?.callStack ?? [doc.id];
+    if (stack.length >= MAX_SUBFLOW_DEPTH) return { kind: "failed", error: { code: "SUBFLOW_DEPTH", message: `Fluxos chamados demais em cadeia (máximo ${MAX_SUBFLOW_DEPTH}).` } };
+    const resolved = resolveConfig(node.config, ctx, Object.fromEntries(def.fields.map((f) => [f.key, f.kind])));
+    if (!resolved.ok) return invalid(resolved.message);
+    const args: Record<string, Scalar> = {};
+    for (const f of def.fields) {
+      const v = resolved.config[f.key];
+      if (v !== undefined && v !== null && v !== "") args[f.key] = v as Scalar;
+    }
+    const returns = (def.results ?? []).map((r) => r.key).filter((k) => k !== "status");
+    return finishNested(await runNested({ doc: def.pluginFlow!, name: def.label }, args, node, `plugin:${def.type}`, stack), def.label, true, returns);
   };
 
   if (opts.startAt !== undefined && !nodes.has(opts.startAt)) {
@@ -351,6 +373,8 @@ export async function runWorkflow(doc: WorkflowDocument, opts: RunOptions): Prom
       outcome = foreach(node);
     } else if (node.type === "flow.subflow") {
       outcome = await callSubflow(node);
+    } else if (def.pluginFlow) {
+      outcome = await callPlugin(node, def);
     } else {
       const resolved = resolveConfig(node.config, ctx, Object.fromEntries(def.fields.map((f) => [f.key, f.kind])));
       if (!resolved.ok) {

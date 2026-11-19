@@ -5,6 +5,9 @@ import {
   cancelExecutionSchema,
   createAutomationSchema,
   createFromTemplateSchema,
+  pluginConfirmSchema,
+  pluginIdSchema,
+  setPluginEnabledSchema,
   createScheduleSchema,
   scheduleIdSchema,
   setScheduleEnabledSchema,
@@ -29,6 +32,7 @@ import {
 } from "@automation-studio/shared-types";
 import type { AutomationService } from "../services/automations.js";
 import { AppError } from "../services/errors.js";
+import type { PluginService } from "../services/plugins.js";
 import type { ScheduleService } from "../services/scheduling/schedules.js";
 import type { ExchangeService } from "../services/exchange.js";
 import type { ExecutionManager } from "../services/executions.js";
@@ -58,6 +62,7 @@ export interface IpcDeps {
   history: HistoryService;
   exchange: ExchangeService;
   schedules: ScheduleService;
+  plugins: PluginService;
   diagnostics: Diagnostics;
   templates: TemplatesService;
   appInfo: AppInfo;
@@ -169,6 +174,12 @@ export function registerIpc(ipc: IpcMainLike, deps: IpcDeps): void {
   route(IPC.schedulesSetEnabled, setScheduleEnabledSchema, (i) => deps.schedules.setEnabled(i.id, i.enabled));
   route(IPC.schedulesResync, scheduleIdSchema, (i) => deps.schedules.resync(i.id));
   route(IPC.schedulesRemove, scheduleIdSchema, (i) => deps.schedules.remove(i.id));
+  route(IPC.pluginsList, noInputSchema, () => deps.plugins.list());
+  route(IPC.pluginsSources, noInputSchema, () => deps.plugins.sources());
+  route(IPC.pluginsImportPreview, noInputSchema, () => deps.plugins.importPreview());
+  route(IPC.pluginsImportConfirm, pluginConfirmSchema, (i) => deps.plugins.importConfirm(i.token));
+  route(IPC.pluginsSetEnabled, setPluginEnabledSchema, (i) => deps.plugins.setEnabled(i.id, i.enabled));
+  route(IPC.pluginsRemove, pluginIdSchema, (i) => deps.plugins.remove(i.id));
   route(IPC.settingsGet, noInputSchema, () => settings.get());
   route(IPC.settingsUpdate, settingsPatchSchema, (p) => settings.update(p));
   route(IPC.appInfo, noInputSchema, () => deps.appInfo);

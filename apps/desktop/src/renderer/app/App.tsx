@@ -4,6 +4,7 @@ import { Button } from "../components/ui/Button";
 import { Dialog } from "../components/ui/Dialog";
 import { AutomationsPage } from "../features/automations/AutomationsPage";
 import { Dashboard } from "../features/dashboard/Dashboard";
+import { PluginsPage } from "../features/plugins/PluginsPage";
 import { SchedulesPage } from "../features/schedules/SchedulesPage";
 import { HistoryPage } from "../features/history/HistoryPage";
 import { EditorPage } from "../features/editor/EditorPage";
@@ -11,6 +12,7 @@ import { SettingsPage } from "../features/settings/SettingsPage";
 import { useAutomations } from "../stores/automations";
 import { isDirty, useEditor } from "../stores/editor";
 import { useEngine } from "../stores/engine";
+import { usePlugins } from "../stores/plugins";
 import { useRun } from "../stores/run";
 import { useSettings } from "../stores/settings";
 
@@ -25,7 +27,7 @@ function useApplyTheme() {
   }, [theme]);
 }
 
-type View = { page: "dashboard" | "automations" | "schedules" | "history" | "settings"; createOnOpen?: boolean } | { page: "editor"; automationId: string };
+type View = { page: "dashboard" | "automations" | "plugins" | "schedules" | "history" | "settings"; createOnOpen?: boolean } | { page: "editor"; automationId: string };
 
 export function App() {
   const [view, setView] = useState<View>({ page: "dashboard" });
@@ -36,6 +38,7 @@ export function App() {
   useEffect(() => {
     void useAutomations.getState().load();
     void useSettings.getState().load();
+    void usePlugins.getState().load();
     const offEngine = useEngine.getState().init();
     const offRun = useRun.getState().init();
     return () => {
@@ -64,6 +67,7 @@ export function App() {
         {view.page === "automations" && (
           <AutomationsPage openCreate={view.createOnOpen} onOpen={(id) => go({ page: "editor", automationId: id })} />
         )}
+        {view.page === "plugins" && <PluginsPage />}
         {view.page === "schedules" && <SchedulesPage />}
         {view.page === "history" && <HistoryPage />}
         {view.page === "settings" && <SettingsPage />}

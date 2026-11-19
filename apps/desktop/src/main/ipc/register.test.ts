@@ -5,6 +5,7 @@ import { openDatabase } from "../database/db.js";
 import { createAutomationService } from "../services/automations.js";
 import { createDiagnostics } from "../services/diagnostics.js";
 import { createHistoryService } from "../services/history.js";
+import { createPluginService } from "../services/plugins.js";
 import { createScheduleService } from "../services/scheduling/schedules.js";
 import { createExchangeService } from "../services/exchange.js";
 import { createExecutionManager } from "../services/executions.js";
@@ -38,6 +39,7 @@ beforeEach(() => {
       appInfo: { version: "0.0.0", dataPath: "/x" },
       engine: { status: { state: "unavailable", reason: "teste" } },
       history,
+      plugins: createPluginService(db, { io: { pickOpenPath: async () => null, statSize: () => 0, readText: () => "", baseName: (x) => x } }),
       schedules: createScheduleService(db, { tasks: { supported: false, upsert: async () => ({ ok: false, message: "x" }), remove: async () => ({ ok: true }) }, command: { file: "app" } }),
       exchange: createExchangeService({ automations, workflows, appVersion: "0", io: { pickSavePath: async () => null, pickOpenPath: async () => null, statSize: () => 0, readText: () => "", writeText: () => undefined, baseName: (p) => p } }),
       diagnostics: createDiagnostics({ baseDir: "/tmp/as-diag-test", capture: async () => null }),
@@ -81,6 +83,10 @@ describe("IPC", () => {
     ["agendar hora inválida", IPC.schedulesCreate, [{ automationId: "a", config: { kind: "daily", time: "25:00" } }]],
     ["agendar semanal sem dias", IPC.schedulesCreate, [{ automationId: "a", config: { kind: "weekly", time: "10:00", days: [] } }]],
     ["agendar campo extra (comando)", IPC.schedulesCreate, [{ automationId: "a", config: { kind: "logon", command: "calc.exe" } }]],
+    ["plugin: id com maiúsculas/caminho", IPC.pluginsRemove, [{ id: "../Ruim" }]],
+    ["plugin: confirmar com conteúdo (renderer não envia o plugin)", IPC.pluginsImportConfirm, [{ token: "t", text: "{}" }]],
+    ["plugin: importar com caminho", IPC.pluginsImportPreview, [{ path: "/etc/passwd" }]],
+    ["plugin: ativar sem booleano", IPC.pluginsSetEnabled, [{ id: "ok-id", enabled: 1 }]],
     ["ativar sem booleano", IPC.schedulesSetEnabled, [{ id: "a", enabled: "sim" }]],
     ["tema inválido", IPC.settingsUpdate, [{ theme: "roxo" }]],
     ["captura não booleana", IPC.settingsUpdate, [{ captureDiagnostics: "sim" }]],
@@ -127,7 +133,7 @@ describe("IPC", () => {
         executions: {} as never,
         history: {} as never,
         exchange: {} as never,
-        schedules: {} as never,
+        schedules: {} as never, plugins: {} as never,
         diagnostics: {} as never,
         templates: {} as never,
         isTrustedUrl: () => true,
@@ -218,7 +224,7 @@ describe("IPC", () => {
       { handle: (c, l) => void handlers.set(c, l) },
       {
         automations: {} as never, settings: {} as never, workflows: {} as never, appInfo: { version: "0", dataPath: "" }, engine: { status: { state: "starting" } },
-        executions: {} as never, history: {} as never, diagnostics: {} as never, templates: {} as never, schedules: {} as never,
+        executions: {} as never, history: {} as never, diagnostics: {} as never, templates: {} as never, schedules: {} as never, plugins: {} as never,
         exchange: {
           importPreview: async () => {
             throw new AppError("VALIDATION", "arquivo ruim");

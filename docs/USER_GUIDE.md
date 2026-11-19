@@ -60,20 +60,23 @@ Nós **Abrir página**, **Clicar no elemento**, **Preencher campo**, **Extrair d
 O nó **Chamar fluxo** (Controle) executa **outra automação** e continua quando ela terminar. Escolha o fluxo no nó: as **variáveis dele viram os parâmetros** (deixe vazio para usar o valor padrão) e, ao terminar, as variáveis finais voltam em `{{nodes.<id>.outputs.<variável>}}` (o painel mostra a lista). Roda a **versão salva** do outro fluxo (salve-o antes). Pausa, passo a passo e breakpoints entram no fluxo chamado; os nós dele aparecem como "Fluxo › Nó".
 Limites: até 5 fluxos encadeados; ciclos (A chama B que chama A) param com mensagem clara; renomear uma variável do fluxo chamado exige atualizar os chamadores; exportar um fluxo não leva os fluxos que ele chama.
 
-## 10. O que cada ação faz e seus limites
+## 10. Plugins
+**Plugins → Instalar plugin…** adiciona um **nó novo** (categoria "Plugins" na paleta) que combina nós que o app já tem. Plugins **não trazem código**: o app mostra um resumo antes de instalar e nunca instala sozinho; dá para **desativar** ou **remover** a qualquer momento (as automações que usam o nó deixam de executar até reinstalar). Formato e como criar: `docs/PLUGINS.md`.
+
+## 11. O que cada ação faz e seus limites
 Referência completa em `docs/ACTIONS.md`. Em resumo: nenhuma ação **apaga** arquivos; copiar/mover checam conflitos antes de alterar e só substituem com "Sobrescrever" (confirmação na tela). Mouse e teclado têm o canto superior esquerdo da tela como botão de emergência (mover o mouse até lá interrompe).
 
-## 11. Limitações conhecidas
+## 12. Limitações conhecidas
 - ⚠️ Ações de janela, teclado e mouse (abrir app, ativar janela, digitar, atalho, clique) só funcionam no Windows e ainda não foram validadas em máquina real; cliques por coordenada dependem de resolução e escala.
 - Aplicativos executados como administrador podem ignorar teclado/mouse de um app sem elevação.
 - Automação de interface não funciona com a sessão bloqueada ou o usuário desconectado.
 - Sem gravador, OCR ou plugins (fases futuras). Automação web: sem login persistente, abas múltiplas, upload/download.
 - Listas só vêm de "Listar arquivos" (até 2000 itens).
 
-## 12. Seus dados, atualização e desinstalação
+## 13. Seus dados, atualização e desinstalação
 Os dados (automações, histórico, capturas) ficam em `%APPDATA%\Automation Studio`. **Atualizar** o aplicativo preserva tudo. **Desinstalar não apaga os dados** (para recomeçar do zero, apague essa pasta com o app fechado). Se um app mais antigo encontrar dados de uma versão mais nova, ele **não os abre** e pede para atualizar.
 
-## 13. Problemas comuns
+## 14. Problemas comuns
 | Mensagem | O que fazer |
 |---|---|
 | Motor "Indisponível" | Python 3.11+ não encontrado; veja o motivo no Dashboard. |

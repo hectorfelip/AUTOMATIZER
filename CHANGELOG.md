@@ -4,6 +4,7 @@
 Linux verificado; Windows pendente nos itens marcados em `docs/reviews/`.
 
 ### Adicionado
+- **Fase 8 (plugins):** plugins **declarativos** (nós novos por composição de nós embutidos, sem código), instalação manual com resumo, ativar/desativar/remover (ADR 0014 opção A, `docs/PLUGINS.md`). Plugins com código **não** existem.
 - **Fase 9 (parcial):** configuração do instalador NSIS (electron-builder), motor congelado em `resources/engine`, política de dados preservados, recusa de banco de versão futura, teste de atualização com dados reais (`docs/INSTALLER.md`). **Instalador não gerado/testado no Windows.**
 - **Fase 8 (parcial):** nó "Chamar fluxo" (subfluxos com parâmetros e retorno pelas variáveis do fluxo chamado, sem mudar o schema), exemplo web na biblioteca de templates (ADR 0013). OCR, reconhecimento visual e plugins **não** implementados.
 - **Fase 7 (web):** nós Navegador (abrir, clicar, preencher, extrair, esperar, fechar) com Playwright; sessão por execução fechada ao fim; cancelamento rápido (ADR 0012). Gravador **não** implementado.

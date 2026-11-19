@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Button } from "../../components/ui/Button";
 import { describeEngine, useEngine } from "../../stores/engine";
 import { currentDoc, isDirty, issuesOf, useEditor } from "../../stores/editor";
+import { usePlugins } from "../../stores/plugins";
 import { useBreakpoints } from "../../stores/breakpoints";
 import { useRun } from "../../stores/run";
 import * as H from "./history";
@@ -221,6 +222,7 @@ function Shell({ onBack }: { onBack: () => void }) {
 }
 
 export function EditorPage({ automationId, onBack }: { automationId: string; onBack: () => void }) {
+  const pluginsReady = usePlugins((s) => s.ready);
   const status = useEditor((s) => s.status);
   const loadError = useEditor((s) => s.loadError);
 
@@ -242,7 +244,7 @@ export function EditorPage({ automationId, onBack }: { automationId: string; onB
       </div>
     );
   }
-  if (status !== "ready") return <p className="p-8 text-muted">Carregando fluxo…</p>;
+  if (status !== "ready" || !pluginsReady) return <p className="p-8 text-muted">Carregando fluxo…</p>;
   return (
     <ReactFlowProvider>
       <Shell onBack={onBack} />

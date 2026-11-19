@@ -1,4 +1,4 @@
-import type { ConfigValue } from "@automation-studio/workflow-schema";
+import type { ConfigValue, WorkflowDocument } from "@automation-studio/workflow-schema";
 
 export type FieldKind = "text" | "path" | "number" | "boolean" | "select" | "list" | "automation";
 
@@ -37,7 +37,7 @@ export interface Port {
   label: string;
 }
 
-export type CategoryId = "control" | "data" | "files" | "windows" | "input" | "web";
+export type CategoryId = "control" | "data" | "files" | "windows" | "input" | "web" | "plugins";
 
 export interface NodeDefinition {
   /** Identificador estável, ex.: `files.move`. */
@@ -56,4 +56,6 @@ export interface NodeDefinition {
   unique?: boolean;
   /** Chaves extras de config com este prefixo (ex.: `arg.`) são parâmetros de texto validados como os demais. */
   dynamicFieldPrefix?: string;
+  /** Nó de PLUGIN declarativo (ADR 0014): executa este fluxo interno (só nós embutidos); os campos viram variáveis de mesmo nome. */
+  pluginFlow?: WorkflowDocument;
 }

@@ -61,6 +61,14 @@ const api: DesktopApi = {
     resync: (input) => ipcRenderer.invoke(IPC.schedulesResync, input),
     remove: (input) => ipcRenderer.invoke(IPC.schedulesRemove, input),
   },
+  plugins: {
+    list: () => ipcRenderer.invoke(IPC.pluginsList),
+    sources: () => ipcRenderer.invoke(IPC.pluginsSources),
+    importPreview: () => ipcRenderer.invoke(IPC.pluginsImportPreview),
+    importConfirm: (input) => ipcRenderer.invoke(IPC.pluginsImportConfirm, input),
+    setEnabled: (input) => ipcRenderer.invoke(IPC.pluginsSetEnabled, input),
+    remove: (input) => ipcRenderer.invoke(IPC.pluginsRemove, input),
+  },
   settings: {
     get: () => ipcRenderer.invoke(IPC.settingsGet),
     update: (patch) => ipcRenderer.invoke(IPC.settingsUpdate, patch),

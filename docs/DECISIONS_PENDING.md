@@ -16,7 +16,7 @@ Também: **política de dados do instalador** (`docs/INSTALLER.md`): atualizar e
 ## 2. Decidir (propostas prontas, nada implementado)
 | Tema | Documento | Recomendação |
 |---|---|---|
-| API de plugins | [ADR 0014](adr/0014-plugins-de-acoes-proposta.md) | Pacote **declarativo** (sem código) agora; plugin com código só depois |
+| API de plugins | [ADR 0014](adr/0014-plugins-de-acoes-proposta.md) | **Opção A (declarativa) já implementada** sob `/goal` — confirme ou mande reverter. Opção B (código) **não** feita e só com seus requisitos de segurança |
 | OCR / reconhecimento visual | [ADR 0015](adr/0015-ocr-e-reconhecimento-visual-proposta.md) | Protótipo com **Windows.Media.Ocr**; rode `scripts/spike-ocr.py` no Windows |
 | **Gravador** (Fase 7) | — (sem ADR) | Precisa de protótipo de ganchos globais no Windows (candidatas: `pynput` ou hooks do `pywin32`); posso escrever o ADR se você quiser o gravador |
 

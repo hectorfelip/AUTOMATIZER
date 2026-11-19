@@ -12,7 +12,7 @@ export interface ExchangeIO {
   /** Abre "Salvar como"; null = cancelado. */
   pickSavePath(defaultName: string): Promise<string | null>;
   /** Abre "Abrir"; null = cancelado. */
-  pickOpenPath(): Promise<string | null>;
+  pickOpenPath(kind?: "workflow" | "plugin"): Promise<string | null>;
   statSize(path: string): number;
   readText(path: string): string;
   writeText(path: string, text: string): void;

@@ -83,6 +83,45 @@ export interface ImportConfirmInput {
   token: string;
   name?: string;
 }
+export interface PluginSummary {
+  id: string;
+  name: string;
+  version: string;
+  description: string;
+  enabled: boolean;
+  installedAt: string;
+  nodeType: string;
+  fieldCount: number;
+  returns: string[];
+  nodeCount: number;
+  /** Quantas automações (versão salva atual) usam o nó deste plugin. */
+  usedBy: number;
+  problem: string | null;
+}
+/** Resumo ANTES de instalar; só o Main guarda o conteúdo (o renderer recebe um token). */
+export interface PluginPreview {
+  token: string;
+  fileName: string;
+  id: string;
+  name: string;
+  version: string;
+  description: string;
+  nodeType: string;
+  fieldCount: number;
+  returns: string[];
+  nodeCount: number;
+  replacesVersion: string | null;
+}
+export interface PluginIdInput {
+  id: string;
+}
+export interface SetPluginEnabledInput {
+  id: string;
+  enabled: boolean;
+}
+export interface PluginConfirmInput {
+  token: string;
+}
 export interface AppInfo {
   version: string;
   dataPath: string;
@@ -181,6 +220,12 @@ export const IPC = {
   schedulesSetEnabled: "schedules:set-enabled",
   schedulesResync: "schedules:resync",
   schedulesRemove: "schedules:remove",
+  pluginsList: "plugins:list",
+  pluginsSources: "plugins:sources",
+  pluginsImportPreview: "plugins:import-preview",
+  pluginsImportConfirm: "plugins:import-confirm",
+  pluginsSetEnabled: "plugins:set-enabled",
+  pluginsRemove: "plugins:remove",
   settingsGet: "settings:get",
   settingsUpdate: "settings:update",
   appInfo: "app:info",
@@ -251,6 +296,15 @@ export interface DesktopApi {
     /** Tenta registrar de novo no Agendador do Windows. */
     resync(input: ScheduleIdInput): Promise<IpcResult<Schedule>>;
     remove(input: ScheduleIdInput): Promise<IpcResult<null>>;
+  };
+  plugins: {
+    list(): Promise<IpcResult<PluginSummary[]>>;
+    /** Textos dos plugins ativos, para o renderer montar os nós com o mesmo validador. */
+    sources(): Promise<IpcResult<{ id: string; text: string }[]>>;
+    importPreview(): Promise<IpcResult<PluginPreview | null>>;
+    importConfirm(input: PluginConfirmInput): Promise<IpcResult<PluginSummary>>;
+    setEnabled(input: SetPluginEnabledInput): Promise<IpcResult<PluginSummary>>;
+    remove(input: PluginIdInput): Promise<IpcResult<null>>;
   };
   settings: {
     get(): Promise<IpcResult<AppSettings>>;
