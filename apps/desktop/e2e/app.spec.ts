@@ -144,3 +144,25 @@ test("navegar para outro arquivo local ou site é bloqueado (o IPC só serve a p
   expect(ok).toBe(true);
   await closeApp(app);
 });
+
+test("abrir o app de novo com ele já rodando traz a janela existente para a frente (não fica mudo)", async () => {
+  const { spawn } = await import("node:child_process");
+  const { join } = await import("node:path");
+  const dataDir = newDataDir();
+  const { app } = await launch(dataDir);
+  const visible = () => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.isVisible());
+  await expect.poll(visible, { timeout: 10_000 }).toBe(true); // espera o ready-to-show: senão ele reexibiria a janela depois do hide()
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.hide());
+  await new Promise((r) => setTimeout(r, 500));
+  expect(await visible()).toBe(false);
+
+  // segunda abertura (como clicar no atalho outra vez): o processo novo sai sozinho e a janela da primeira volta
+  const electronPath = (await import("electron")) as unknown as { default: string };
+  const second = spawn(electronPath.default, [join(__dirname, "../out/main/index.js"), ...(process.platform === "linux" ? ["--no-sandbox"] : [])], {
+    env: { ...process.env, AUTOMATION_STUDIO_USER_DATA: dataDir },
+    stdio: "ignore",
+  });
+  await new Promise<void>((resolve) => second.once("exit", () => resolve()));
+  await expect.poll(visible, { timeout: 5000 }).toBe(true);
+  await closeApp(app);
+});

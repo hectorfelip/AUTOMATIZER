@@ -41,6 +41,18 @@ export function createMainWindow(): BrowserWindow {
   });
 
   win.once("ready-to-show", () => win.show());
+  // Falha ao carregar a interface ou queda do renderer NUNCA pode deixar o app invisível e mudo: mostra e explica.
+  let reported = false;
+  const report = (what: string) => {
+    if (reported || win.isDestroyed()) return;
+    reported = true;
+    if (!win.isVisible()) win.show();
+    dialog.showErrorBox("Automation Studio", `${what}\nFeche e abra o aplicativo de novo; se persistir, reinstale. Seus dados não foram alterados.`);
+  };
+  win.webContents.on("did-fail-load", (_e, code, desc, url, isMainFrame) => {
+    if (isMainFrame && code !== -3) report(`A interface não pôde ser carregada (${desc}, código ${code}).`); // -3 = navegação cancelada (normal)
+  });
+  win.webContents.on("render-process-gone", (_e, d) => report(`A interface parou de responder (${d.reason}).`));
 
   // Sem janelas novas e sem navegação para fora do app; links http(s) abrem no navegador do sistema.
   win.webContents.setWindowOpenHandler(({ url }) => {

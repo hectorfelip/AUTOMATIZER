@@ -259,7 +259,17 @@ if (!app.requestSingleInstanceLock()) {
     // app já aberto e o Agendador chamou de novo: a instância em execução cuida (sem roubar o foco)
     app.on("second-instance", (_e, argv) => {
       const l = parseLaunchArgs(argv);
-      if (l) void runner.run(l);
+      if (l) {
+        void runner.run(l);
+        return;
+      }
+      // o usuário abriu o app de novo (atalho, menu Iniciar): traz a janela já aberta para a frente, em vez de não fazer nada
+      const main = BrowserWindow.getAllWindows().find((w) => !w.isDestroyed() && !w.webContents.getURL().startsWith("data:"));
+      if (main) {
+        if (main.isMinimized()) main.restore();
+        main.show();
+        main.focus();
+      }
     });
 
     // Ao sair: cancela a execução, pede ao motor que encerre (até 2 s) e só então fecha o banco.
