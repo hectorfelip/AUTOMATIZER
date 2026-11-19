@@ -194,16 +194,16 @@ Só inicia após a Fase 6a aceita; não bloqueia o MVP.
 ## Fase 8 — Reconhecimento visual e extensibilidade
 
 ### Tarefas
-- [ ] Prototipar OCR.
-- [ ] Implementar localizar texto na tela.
+- [x] Prototipar OCR. *(spike no Windows do Hector: pt-BR, 0,42 s, 385 palavras — ADR 0015)*
+- [x] Implementar localizar texto na tela. *(`vision.find_text`; lógica testada em Linux com backend falso; **a ação real ainda não foi rodada no Windows**: `scripts/verify-vision.py`)*
 - [ ] Implementar localizar imagem de referência.
-- [ ] Implementar espera por elemento visual.
+- [x] Implementar espera por elemento visual. *(`vision.find_text` espera o texto aparecer, com timeout; imagem de referência não)*
 - [x] Definir API de plugins de ações. *(declarativa, sem código — ADR 0014 opção A; opção B não feita)*
 - [x] Documentar criação de novos nós. *(`docs/PLUGINS.md`)*
 - [x] Criar subfluxos reutilizáveis. *(ADR 0013)*
 - [x] Criar biblioteca de templates. *(7 exemplos embutidos; "formato final do pacote" segue aberto — ARCHITECTURE §15)*
 
-> **Pendentes (dependem de decisão/protótipo no Windows):** OCR, localizar texto/imagem na tela e espera por elemento visual (ADR 0015, `scripts/spike-ocr.py`). Critério "ações visuais com timeout e limiar" **não atendido**. "Plugins validados e carregados de forma controlada" **atendido para plugins declarativos** (validação estrita, importação manual com resumo, ativar/desativar/remover).
+> **Pendentes:** localizar **imagem** de referência (decidir OpenCV/Pillow) e validar `vision.find_text` no Windows (`scripts/verify-vision.py`). Critério "ações visuais com timeout e limiar configuráveis": **atendido para texto** (timeout + similaridade), **não para imagem**. "Plugins validados e carregados de forma controlada": **atendido** para plugins declarativos.
 
 ### Critérios de aceite
 - Ações visuais têm timeout e limiar de confiança configuráveis.

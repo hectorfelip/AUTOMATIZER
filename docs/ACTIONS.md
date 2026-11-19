@@ -72,3 +72,13 @@ Requer `playwright` (`engine/python/requirements-web.txt`) e um navegador (Edge/
 | `web.close` | — | `closed` | — |
 
 Cancelar interrompe esperas/cliques em < 1 s; cancelar durante o carregamento de uma página vale quando ela terminar ou estourar o prazo.
+
+## Visão / OCR (ADR 0015)
+
+Só **Windows** (Windows.Media.Ocr; idioma do perfil do usuário, ex.: pt-BR). Requer `engine/python/requirements-vision.txt` (`pyautogui`, `pillow`, `winrt-*`). Preferência de automação: UIA > janela > navegador > **OCR** > coordenadas.
+
+| Nó | Config | Resultados | Erros principais |
+|---|---|---|---|
+| `vision.find_text` | `text` (ignora caixa e acentos), `similarity` (0,3–1; padrão 0,8), `timeoutSeconds`, região `regionX/Y/Width/Height` (todos 0 = tela inteira) | `centerX`, `centerY`, `x`, `y`, `width`, `height`, `matchedText`, `similarity`, `attempts` | `TEXT_NOT_FOUND_ON_SCREEN` (diz a melhor similaridade; **não repete o que foi lido na tela**), `UNSUPPORTED_PLATFORM`, `DEPENDENCY_MISSING` (diz qual import e qual Python), `OCR_LANGUAGE_MISSING`, `INVALID_CONFIG` |
+
+O OCR não dá confiança por palavra: o **limiar é a similaridade** entre o procurado e o lido (tolera ruído, ex.: "Prompt para" lido como "Promptpa" = 0,84). Espera o texto aparecer (consulta a cada 0,5 s; cancelamento em < 1 s). Use o resultado em "Clique": `{{nodes.<id>.centerX}}` / `{{nodes.<id>.centerY}}`. Coordenadas e captura usam o mesmo espaço de pixels do `pyautogui` (escalas de DPI não foram validadas). **Localizar imagem não existe ainda.**

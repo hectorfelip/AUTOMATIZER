@@ -1,0 +1,12 @@
+# Visão/OCR (Fase 8, ADR 0015). Opcional: sem isto o motor funciona e os nós "Visão" avisam o que falta.
+# Windows.Media.Ocr (vem no Windows 10/11) via winrt + captura de tela via pyautogui/Pillow. Validado no Python 3.14 (spike).
+pyautogui==0.9.54
+pillow
+winrt-runtime
+winrt-Windows.Media.Ocr
+winrt-Windows.Graphics.Imaging
+winrt-Windows.Storage
+winrt-Windows.Storage.Streams
+winrt-Windows.Globalization
+winrt-Windows.Foundation
+winrt-Windows.Foundation.Collections

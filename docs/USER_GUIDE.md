@@ -63,20 +63,23 @@ Limites: até 5 fluxos encadeados; ciclos (A chama B que chama A) param com mens
 ## 10. Plugins
 **Plugins → Instalar plugin…** adiciona um **nó novo** (categoria "Plugins" na paleta) que combina nós que o app já tem. Plugins **não trazem código**: o app mostra um resumo antes de instalar e nunca instala sozinho; dá para **desativar** ou **remover** a qualquer momento (as automações que usam o nó deixam de executar até reinstalar). Formato e como criar: `docs/PLUGINS.md`.
 
-## 11. O que cada ação faz e seus limites
+## 11. Visão (OCR)
+O nó **Localizar texto na tela** (categoria "Visão (OCR)") procura um texto visível por OCR, **espera ele aparecer** e devolve a posição (`{{nodes.<id>.centerX}}` e `centerY`, para usar em **Clique**). Ignora maiúsculas e acentos; a **similaridade mínima** (padrão 0,8) tolera o ruído do OCR em texto pequeno. Limite a busca a uma **região** para ficar mais rápido e preciso. Só Windows; prefira janela/elemento quando existirem. Instale `engine\python\requirements-vision.txt` no Python do motor. ⚠️ A ação ainda não foi validada no Windows (`python scripts\verify-vision.py "texto"`); localizar **imagem** não existe.
+
+## 12. O que cada ação faz e seus limites
 Referência completa em `docs/ACTIONS.md`. Em resumo: nenhuma ação **apaga** arquivos; copiar/mover checam conflitos antes de alterar e só substituem com "Sobrescrever" (confirmação na tela). Mouse e teclado têm o canto superior esquerdo da tela como botão de emergência (mover o mouse até lá interrompe).
 
-## 12. Limitações conhecidas
+## 13. Limitações conhecidas
 - ⚠️ Ações de janela, teclado e mouse (abrir app, ativar janela, digitar, atalho, clique) só funcionam no Windows e ainda não foram validadas em máquina real; cliques por coordenada dependem de resolução e escala.
 - Aplicativos executados como administrador podem ignorar teclado/mouse de um app sem elevação.
 - Automação de interface não funciona com a sessão bloqueada ou o usuário desconectado.
 - Sem gravador, OCR ou plugins (fases futuras). Automação web: sem login persistente, abas múltiplas, upload/download.
 - Listas só vêm de "Listar arquivos" (até 2000 itens).
 
-## 13. Seus dados, atualização e desinstalação
+## 14. Seus dados, atualização e desinstalação
 Os dados (automações, histórico, capturas) ficam em `%APPDATA%\Automation Studio`. **Atualizar** o aplicativo preserva tudo. **Desinstalar não apaga os dados** (para recomeçar do zero, apague essa pasta com o app fechado). Se um app mais antigo encontrar dados de uma versão mais nova, ele **não os abre** e pede para atualizar.
 
-## 14. Problemas comuns
+## 15. Problemas comuns
 | Mensagem | O que fazer |
 |---|---|
 | Motor "Indisponível" | Python 3.11+ não encontrado; veja o motivo no Dashboard. |

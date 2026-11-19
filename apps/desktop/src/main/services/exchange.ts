@@ -30,7 +30,7 @@ interface Deps {
   now?: () => number;
 }
 
-const WINDOWS_CATEGORIES = new Set(["windows", "input"]);
+const WINDOWS_CATEGORIES = new Set(["windows", "input", "vision"]);
 const safeFileName = (name: string) =>
   [...name].map((c) => (c.charCodeAt(0) < 32 || '<>:"/\\|?*'.includes(c) ? "_" : c)).join("").trim().slice(0, 80) || "fluxo";
 

@@ -1,6 +1,6 @@
 # ADR 0016 — Gravador de mouse e teclado (Fase 7) — PROPOSTA
 
-**Status:** proposta, **nada implementado**. Depende de protótipo em Windows real (`ARCHITECTURE §15`). Roadmap: capturar mouse/teclado, **indicador visual de gravação**, pausa e parada, converter em **nós editáveis**, **excluir ou mascarar campos sensíveis**. Critérios: a gravação é **revisada antes de virar fluxo** e o usuário pode **corrigir** as ações geradas.
+**Status:** spike **APROVADO no Windows** (49 eventos capturados com `pynput`); implementação **em andamento sob a diretriz `/goal`**. Depende de protótipo em Windows real (`ARCHITECTURE §15`). Roadmap: capturar mouse/teclado, **indicador visual de gravação**, pausa e parada, converter em **nós editáveis**, **excluir ou mascarar campos sensíveis**. Critérios: a gravação é **revisada antes de virar fluxo** e o usuário pode **corrigir** as ações geradas.
 
 ## Risco principal: é um keylogger por construção
 Um gravador captura teclas globais. Por isso o desenho precisa garantir **consentimento, visibilidade e descarte**, não só funcionar:
@@ -30,3 +30,7 @@ Gravar vídeo/tela; gravar dentro de aplicativos elevados (o Windows impede); gr
 
 ## O que fazer agora
 Rodar `scripts/spike-recorder.py` no Windows (deixa 10 s capturando e imprime eventos) e me mandar a saída. Responder: **aprovar o protótipo**, **aprovar também o nó "clicar em elemento UIA"**, ou **adiar o gravador**.
+
+
+## Resultado do spike (Windows 10 build 19045, Python 3.14.8, executado pelo Hector)
+`pynput` instalou e capturou **49 eventos em 10 s** (cliques com posição, teclas pressionadas/soltas, rolagem). **Decisão:** `pynput`. O spike não mostra as teclas digitadas; a implementação também não as persiste fora da memória até a revisão.

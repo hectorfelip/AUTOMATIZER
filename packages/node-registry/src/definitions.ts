@@ -7,6 +7,7 @@ export const CATEGORIES: { id: CategoryId; label: string }[] = [
   { id: "windows", label: "Janelas e aplicativos" },
   { id: "input", label: "Mouse e teclado" },
   { id: "web", label: "Navegador" },
+  { id: "vision", label: "Visão (OCR)" },
   { id: "plugins", label: "Plugins" },
 ];
 
@@ -344,6 +345,37 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
           { value: "double", label: "Duplo clique" },
         ],
       },
+    ],
+  },
+  // ---- Visão (OCR; ADR 0015) ----
+  {
+    type: "vision.find_text",
+    version: 1,
+    results: [
+      r("centerX", "Centro X (pixels)", "number"),
+      r("centerY", "Centro Y (pixels)", "number"),
+      r("x", "Canto esquerdo", "number"),
+      r("y", "Topo", "number"),
+      r("width", "Largura", "number"),
+      r("height", "Altura", "number"),
+      r("matchedText", "Texto lido", "string"),
+      r("similarity", "Similaridade (0–1)", "number"),
+      r("attempts", "Tentativas", "number"),
+    ],
+    label: "Localizar texto na tela",
+    category: "vision",
+    description:
+      "Procura um texto visível na tela por OCR, esperando ele aparecer, e devolve a posição (use em “Clique”: {{nodes.<id>.centerX}}, {{nodes.<id>.centerY}}). Só funciona no Windows. Prefira janela/elemento quando existirem; OCR é para o que não tem.",
+    inputs: IN,
+    outputs: OK_ERR,
+    fields: [
+      { key: "text", label: "Texto a procurar", kind: "text", required: true, placeholder: "Salvar como", help: "Ignora maiúsculas e acentos." },
+      { key: "similarity", label: "Similaridade mínima (0,3–1)", kind: "number", default: 0.8, min: 0.3, max: 1, help: "O OCR erra letras em texto pequeno; abaixe para tolerar mais ruído, suba para exigir texto igual." },
+      { key: "timeoutSeconds", label: "Esperar até (s)", kind: "number", default: 10, min: 0, max: 3600 },
+      { key: "regionX", label: "Região: X (opcional)", kind: "number", default: 0, min: 0, max: 100_000, help: "Região, em pixels: X, Y, largura e altura. Tudo 0 = tela inteira (mais lento e com mais ruído)." },
+      { key: "regionY", label: "Região: Y", kind: "number", default: 0, min: 0, max: 100_000 },
+      { key: "regionWidth", label: "Região: largura", kind: "number", default: 0, min: 0, max: 100_000 },
+      { key: "regionHeight", label: "Região: altura", kind: "number", default: 0, min: 0, max: 100_000 },
     ],
   },
   // ---- Navegador (Playwright; seletores, nunca coordenadas) ----
