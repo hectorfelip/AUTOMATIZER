@@ -2,7 +2,7 @@
 
 import os
 
-from . import files, flow, input, vision, web, windows  # noqa: F401
+from . import files, flow, input, uia, vision, web, windows  # noqa: F401
 
 # Ações de teste (travar, cair, poluir stdout...) só existem quando pedidas explicitamente.
 if os.environ.get("AUTOMATION_ENGINE_TEST_ACTIONS") == "1":

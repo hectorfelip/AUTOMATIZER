@@ -299,6 +299,46 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
       { key: "timeoutSeconds", label: "Esperar até (s)", kind: "number", default: 10, min: 0, max: 3600 },
     ],
   },
+  {
+    type: "windows.click_element",
+    version: 1,
+    results: [r("x", "X do centro", "number"), r("y", "Y do centro", "number"), r("name", "Nome do elemento", "string"), r("controlType", "Tipo", "string")],
+    label: "Clicar em elemento",
+    category: "windows",
+    description:
+      "Clica em um botão, menu, campo etc. de uma janela pelo NOME (UI Automation), esperando ele aparecer. Mais confiável que clicar por coordenadas: não depende de resolução nem de escala. Só Windows.",
+    inputs: IN,
+    outputs: OK_ERR,
+    fields: [
+      { key: "windowTitle", label: "Título da janela", kind: "text", required: true, placeholder: "Bloco de Notas", help: "Parte do título; use “Ativar janela” antes se precisar trazê-la para frente." },
+      { key: "elementName", label: "Nome do elemento", kind: "text", placeholder: "Salvar", help: "Ignora maiúsculas e acentos e aceita parte do nome. Informe este ou o AutomationId." },
+      { key: "automationId", label: "AutomationId (opcional)", kind: "text", help: "Identificador exato do elemento (mais estável que o nome, quando existe)." },
+      {
+        key: "controlType",
+        label: "Tipo do elemento (opcional)",
+        kind: "select",
+        default: "",
+        options: [
+          { value: "", label: "Qualquer" },
+          ...["Button", "CheckBox", "ComboBox", "Edit", "Hyperlink", "ListItem", "MenuItem", "RadioButton", "TabItem", "Text", "TreeItem"].map((t) => ({ value: t, label: t })),
+        ],
+      },
+      { key: "index", label: "Posição, se houver vários", kind: "number", default: 1, min: 1, max: 1000, help: "1 = o primeiro, de cima para baixo e da esquerda para a direita." },
+      {
+        key: "button",
+        label: "Botão",
+        kind: "select",
+        required: true,
+        default: "left",
+        options: [
+          { value: "left", label: "Esquerdo" },
+          { value: "right", label: "Direito" },
+          { value: "double", label: "Duplo clique" },
+        ],
+      },
+      { key: "timeoutSeconds", label: "Esperar até (s)", kind: "number", default: 10, min: 0, max: 3600 },
+    ],
+  },
   // ---- Mouse e teclado ----
   {
     type: "input.type_text",

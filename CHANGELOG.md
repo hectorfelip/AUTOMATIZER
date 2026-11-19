@@ -4,6 +4,7 @@
 Linux verificado; **ações de arquivo, abrir app, janela, teclado e mouse validadas no Windows** (`verify-actions.py`). Demais itens de Windows pendentes, marcados em `docs/reviews/`.
 
 ### Adicionado
+- **Clicar em elemento (UIA):** `windows.click_element` clica em botão/menu/campo pelo nome ou AutomationId (pywinauto), esperando aparecer; preferível a coordenadas. Só Windows; **não verificado no Windows** (`scripts/verify-uia.py`).
 - **Fase 7 (gravador):** grava mouse e teclado (processo separado, `pynput`), faixa de gravação sempre visível, pausa/parada por atalhos globais, **modo senha** (o caractere nunca sai do processo), revisão editável antes de virar fluxo; só Windows (ADR 0016). Captura real, faixa e atalhos **não verificados no Windows**.
 - **Fase 8 (OCR):** nó "Localizar texto na tela" (Windows.Media.Ocr, similaridade e timeout configuráveis, região opcional; ADR 0015). Spike validado no Windows; **a ação real ainda não foi rodada lá**. Localizar imagem não existe.
 - **Fase 8 (plugins):** plugins **declarativos** (nós novos por composição de nós embutidos, sem código), instalação manual com resumo, ativar/desativar/remover (ADR 0014 opção A, `docs/PLUGINS.md`). Plugins com código **não** existem.
