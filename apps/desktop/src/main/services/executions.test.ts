@@ -436,4 +436,21 @@ describe("ExecutionManager", () => {
     await mgr.shutdown();
     expect(history.get("exec-1").summary.status).toBe("cancelled");
   });
+
+  it("avisa o motor do fim da execução (ele fecha o navegador etc.), uma vez por execução, sucesso ou falha", async () => {
+    const f = fakeEngine(); // o dublê do motor ganha o gancho depois de criado
+    const calls: string[] = [];
+    f.engine.endExecution = (id) => calls.push(id);
+    const db = openDatabase(":memory:");
+    const automations = createAutomationService(db);
+    const wf = createWorkflowService(db);
+    const a = automations.create({ name: "x", description: "" });
+    docId = a.id;
+    const mgr = createExecutionManager({ engine: f.engine, emit: () => undefined, newId: () => "ex-end", history: createHistoryService(db), workflows: wf });
+    mgr.start(a.id, flow());
+    await tick();
+    f.pending[0]!.resolve({ kind: "failed", error: { code: "X", message: "falhou" } });
+    await tick();
+    expect(calls).toEqual(["ex-end"]);
+  });
 });

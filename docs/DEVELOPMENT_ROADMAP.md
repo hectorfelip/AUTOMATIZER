@@ -179,10 +179,12 @@ Só inicia após a Fase 6a aceita; não bloqueia o MVP.
 - [ ] Implementar pausa e parada.
 - [ ] Converter gravação em nós editáveis.
 - [ ] Excluir ou mascarar campos sensíveis.
-- [ ] Integrar Playwright.
-- [ ] Criar nós para navegação, clique, preenchimento e extração.
-- [ ] Implementar espera por elementos.
-- [ ] Criar testes em páginas de demonstração.
+- [x] Integrar Playwright. *(motor; **empacotamento e Edge/Chrome no Windows não verificados**)*
+- [x] Criar nós para navegação, clique, preenchimento e extração.
+- [x] Implementar espera por elementos.
+- [x] Criar testes em páginas de demonstração.
+
+> Gravador (itens 1–5): **não iniciado** — depende de protótipo em Windows real. Ver ADR 0012.
 
 ### Critérios de aceite
 - Gravação pode ser revisada antes de virar fluxo.

@@ -56,3 +56,18 @@ Só três formas, nada é avaliado (sem `eval`):
 - **Parada de emergência:** `pyautogui.FAILSAFE` ligado; levar o mouse ao canto da tela interrompe cliques e atalhos (`FAILSAFE_TRIGGERED`).
 - **Limites:** listas são truncadas (`truncated: true`) para caber no limite de 1 MiB por mensagem do protocolo.
 - Teclado e mouse agem **na janela em foco**: use "Ativar janela" antes de "Digitar texto". Aplicativos executados como administrador exigem que o Automation Studio também rode como administrador.
+
+## Navegador (Playwright — ADR 0012)
+
+Requer `playwright` (`engine/python/requirements-web.txt`) e um navegador (Edge/Chrome no Windows). Uma sessão por execução: abre em `web.navigate`, fecha em `web.close`, ao fim da execução ou após 10 min parada. Só `http://`/`https://`. Seletores: CSS, `text=…`, `role=button[name='…']`, `xpath=…`. Todos têm "Esperar até (s)" e aceitam `{{ }}`.
+
+| Nó | Config | Resultados | Erros principais |
+|---|---|---|---|
+| `web.navigate` | `url`, `timeoutSeconds` (1–120, padrão 30), `showBrowser` | `url`, `title`, `status` | `INVALID_CONFIG` (esquema), `NAVIGATION_TIMEOUT`, `NAVIGATION_FAILED`, `HTTP_ERROR` (≥400), `BROWSER_UNAVAILABLE`, `DEPENDENCY_MISSING` |
+| `web.click` | `selector`, `timeoutSeconds` | `selector` | `NO_BROWSER`, `ELEMENT_NOT_FOUND` |
+| `web.fill` | `selector`, `text` (vazio limpa), `timeoutSeconds` | `selector`, `length` | idem; a mensagem **não repete o texto** |
+| `web.extract` | `selector`, `attribute` (vazio = texto; `value` = valor atual do campo), `timeoutSeconds` | `text` (primeiro), `items` (até 200), `count` | `ELEMENT_NOT_FOUND` |
+| `web.wait` | `selector`, `state` (`visible`/`hidden`/`attached`/`detached`), `timeoutSeconds` | `selector`, `state` | `ELEMENT_NOT_FOUND` |
+| `web.close` | — | `closed` | — |
+
+Cancelar interrompe esperas/cliques em < 1 s; cancelar durante o carregamento de uma página vale quando ela terminar ou estourar o prazo.

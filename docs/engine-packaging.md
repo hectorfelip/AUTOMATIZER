@@ -39,3 +39,7 @@ No Dashboard, o card "Motor de automação" deve mostrar **Disponível**. Depois
 
 ## Onde o executável é procurado
 `resources/engine/automation-engine(.exe)` no app instalado, ou o caminho em `AUTOMATION_STUDIO_ENGINE` (ver `docs/CONVENTIONS.md`).
+
+
+## Playwright (Fase 7 — não empacotado ainda)
+`playwright` está em `requirements-web.txt`, **fora** do executável congelado: o empacotamento validado no Windows (pywinauto/pyautogui) não foi alterado. Antes de incluí-lo é preciso um spike no Windows: o pacote embute um driver Node (~dezenas de MB) que o PyInstaller precisa coletar (`--collect-all playwright`), e o motor usa o **Edge/Chrome do sistema** (sem embutir Chromium). Até lá, os nós "Navegador" no app instalado respondem `DEPENDENCY_MISSING`.

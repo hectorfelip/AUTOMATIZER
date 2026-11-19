@@ -12,7 +12,7 @@ def test_ready_handshake(engine):
     assert engine.ready["eventId"] == 1 and engine.ready["requestId"] == ""
     assert p["protocolVersion"] == 1 and p["engineVersion"]
     assert "flow.wait" in p["actions"]
-    assert set(p["optionalModules"]) == {"pywinauto", "pyautogui"}
+    assert set(p["optionalModules"]) == {"pywinauto", "pyautogui", "playwright"}
 
 
 def test_ping_pong_echoes_request_id(engine):

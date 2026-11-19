@@ -32,4 +32,11 @@ describe("resolveEngineLaunch", () => {
     expect(resolveEngineLaunch(ctx()).env).not.toHaveProperty("AUTOMATION_ENGINE_TEST_ACTIONS");
     expect(resolveEngineLaunch(ctx({ env: { AUTOMATION_ENGINE_TEST_ACTIONS: "1" } })).env).toHaveProperty("AUTOMATION_ENGINE_TEST_ACTIONS", "1");
   });
+
+  it("repassa ao motor só as variáveis do navegador (nunca o ambiente inteiro)", () => {
+    const env = resolveEngineLaunch(ctx({ env: { AUTOMATION_BROWSER_PATH: "/x/chrome", AUTOMATION_BROWSER_NO_SANDBOX: "1", SEGREDO: "nao" } })).env!;
+    expect(env).toMatchObject({ AUTOMATION_BROWSER_PATH: "/x/chrome", AUTOMATION_BROWSER_NO_SANDBOX: "1" });
+    expect(env).not.toHaveProperty("SEGREDO");
+    expect(resolveEngineLaunch(ctx()).env).not.toHaveProperty("AUTOMATION_BROWSER_PATH");
+  });
 });

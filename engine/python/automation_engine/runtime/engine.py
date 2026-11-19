@@ -12,7 +12,7 @@ from ..protocol.messages import Command, ProtocolError, parse_command
 from . import registry
 from .context import ActionCancelled, ActionContext, ActionError
 
-OPTIONAL_MODULES = ("pywinauto", "pyautogui")  # dependências de automação Windows (Fase 4)
+OPTIONAL_MODULES = ("pywinauto", "pyautogui", "playwright")  # automação Windows (Fase 4) e web (Fase 7)
 
 
 def _module_versions() -> dict[str, dict[str, Optional[str]]]:
@@ -50,6 +50,7 @@ class Engine:
             raw = read_message(self._stdin)
             if raw is None:  # EOF: o Main morreu ou fechou o pipe
                 self._cancel_all()
+                registry.run_shutdown()
                 return 0
             if isinstance(raw, Oversize):
                 self._writer.send("protocol_error", payload={"message": "Mensagem maior que 1 MiB descartada."})
@@ -63,6 +64,7 @@ class Engine:
                 continue
             if cmd.type == "shutdown":
                 self._cancel_all()
+                registry.run_shutdown()
                 self._writer.send("bye", cmd.request_id)
                 return 0
             self._dispatch(cmd)
@@ -80,6 +82,8 @@ class Engine:
                 token = self._tokens.get(execution_id) if isinstance(execution_id, str) else None
             if token:
                 token.set()
+            if isinstance(execution_id, str):
+                registry.run_execution_end(execution_id)  # também chamado pelo app ao FIM da execução: fecha o navegador etc.
             self._writer.send("cancel_ack", cmd.request_id, {"executionId": execution_id, "found": token is not None})
         elif cmd.type == "execute_action":
             self._start_action(cmd)

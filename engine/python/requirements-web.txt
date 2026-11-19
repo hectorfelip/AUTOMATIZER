@@ -1,0 +1,3 @@
+# Automação web (Fase 7, ADR 0012). Opcional: sem ela o motor funciona e os nós "Navegador" avisam que falta.
+# No Windows usa o Edge/Chrome já instalado; em outras plataformas, `playwright install chromium`.
+playwright==1.65.2

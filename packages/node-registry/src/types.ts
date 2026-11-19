@@ -37,7 +37,7 @@ export interface Port {
   label: string;
 }
 
-export type CategoryId = "control" | "data" | "files" | "windows" | "input";
+export type CategoryId = "control" | "data" | "files" | "windows" | "input" | "web";
 
 export interface NodeDefinition {
   /** Identificador estável, ex.: `files.move`. */

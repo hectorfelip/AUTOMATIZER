@@ -1,0 +1,18 @@
+# ADR 0012 — Automação web com Playwright (Fase 7, parte web)
+
+**Status:** aprovada pelo Hector (dependência `playwright`, nós web testados em páginas locais). Uso no Windows (Edge/Chrome do sistema) **não verificado**. O **gravador** da Fase 7 **não** foi feito (ver "Fora do escopo").
+
+## Decisões
+1. **Dependência opcional do motor**: `playwright==1.65.2` em `engine/python/requirements-web.txt` (fora de `requirements-windows.txt`, para não alterar o empacotamento já validado). Importada só quando um nó web roda; sem ela o nó falha com `DEPENDENCY_MISSING` e mensagem clara. `playwright` entra em `optionalModules` do `ready`; o `--selftest` do executável congelado continua cobrindo só `pywinauto`/`pyautogui`.
+2. **Navegador:** no Windows tenta **Microsoft Edge** (vem com o Windows 11) e depois Chrome — dispensa embutir o Chromium (centenas de MB). Se nenhum existir, usa o Chromium do Playwright; sem nenhum, `BROWSER_UNAVAILABLE`. `AUTOMATION_BROWSER_PATH` força um executável (testes e instalações atípicas); `AUTOMATION_BROWSER_NO_SANDBOX=1` só para container/teste. O Main repassa só essas duas variáveis ao motor.
+3. **Seis nós, categoria "Navegador":** `web.navigate` (Abrir página), `web.click`, `web.fill`, `web.extract`, `web.wait`, `web.close`. Seletores do Playwright (CSS, `text=`, `role=`, `xpath=`) — nunca coordenadas. Só `http://` e `https://` (recusa `file:`, `javascript:`, `data:`, sem host). Esperas e cliques têm prazo configurável e erros que dizem o seletor e o tempo (`ELEMENT_NOT_FOUND`, `NAVIGATION_TIMEOUT`, `NAVIGATION_FAILED`, `HTTP_ERROR` para ≥400, `NO_BROWSER`).
+4. **Threading:** a API síncrona do Playwright é presa à thread que a criou e o motor roda cada ação numa thread nova → **uma thread dedicada** é dona do Playwright; as ações enviam trabalho a ela e esperam em fatias de 100 ms, percebendo o cancelamento. Esperas/cliques/preenchimentos/extrações são **fatiados em 400 ms** (cancelamento em < 1 s, testado). Só a navegação (`goto`) espera terminar ou estourar o prazo (≤120 s).
+5. **Sessão por execução:** o navegador abre no primeiro `web.navigate` e é fechado por `web.close`, **ao fim da execução** ou por inatividade (10 min). Para o fim da execução **sem mudar o protocolo**, o app envia o `cancel` já existente também quando a execução termina (`EngineClient.endExecution`), e o motor passa a rodar "ganchos de fim de execução" ao receber `cancel`. Semântica nova e compatível: `cancel` = "cancele a ação em curso **e libere os recursos** da execução". `ENGINE_PROTOCOL_VERSION` não muda; `docs/PROTOCOL.md` atualizado. Encerrar o motor fecha tudo (teste: nenhum Chromium órfão).
+6. **Privacidade:** `web.fill` nunca repete o texto digitado na mensagem (vai para o histórico); `web.extract` devolve texto (até 200 elementos × 2000 caracteres); `value` lê o valor **atual** de um campo. Valores extraídos que o fluxo guarda em variáveis seguem a regra geral (aparecem no histórico).
+7. Contexto do navegador novo por execução (sem cookies/perfil persistentes), downloads desligados, janela 1280×800, invisível por padrão (`showBrowser` para depurar).
+
+## Fora do escopo (continua aberto no roadmap)
+**Gravador** (captura global de mouse/teclado, indicador de gravação, conversão em nós, máscara de campos sensíveis): exige ganchos globais do Windows e protótipo em Windows real (`ARCHITECTURE §15`). Também: login/senhas e sessões persistentes, iframes/abas múltiplas, upload/download, "gravar a partir do navegador".
+
+## Não verificado em Windows
+Detecção do Edge/Chrome com `channel="msedge"`, janela visível (`showBrowser`), empacotar `playwright` no executável do motor (PyInstaller + driver Node do Playwright — **não tentado**; ver `docs/engine-packaging.md`).

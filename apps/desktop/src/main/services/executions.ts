@@ -33,6 +33,8 @@ export interface EngineLike {
     onProgress?: (p: ActionProgress) => void,
   ): Promise<ActionOutcome>;
   cancel(executionId: string): void;
+  /** Fim da execução: o motor libera recursos (navegador aberto etc.). Opcional (dublês de teste). */
+  endExecution?(executionId: string): void;
 }
 
 export interface ExecutionManagerDeps {
@@ -270,6 +272,7 @@ export function createExecutionManager({
               if (e.type === "execution_finished") {
                 // libera o motor ANTES de avisar o fim, para a interface poder iniciar a próxima execução
                 release(executionId);
+                safe(() => engine.endExecution?.(executionId), "avisar o motor do fim da execução"); // fecha o navegador etc.
                 const finish = () =>
                   safe(() => {
                     history.log(executionId, {

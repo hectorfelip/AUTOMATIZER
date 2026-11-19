@@ -40,5 +40,7 @@ export function resolveEngineLaunch(ctx: LaunchContext): EngineLaunch {
   const env: Record<string, string> = { PYTHONPATH: engineDir, PYTHONUNBUFFERED: "1", PYTHONIOENCODING: "utf-8" };
   const testActions = ctx.env["AUTOMATION_ENGINE_TEST_ACTIONS"];
   if (testActions) env["AUTOMATION_ENGINE_TEST_ACTIONS"] = testActions;
+  // Navegador das ações web: caminho alternativo e (só em container/teste) execução sem sandbox.
+  for (const k of ["AUTOMATION_BROWSER_PATH", "AUTOMATION_BROWSER_NO_SANDBOX"]) if (ctx.env[k]) env[k] = ctx.env[k]!;
   return { command, args, cwd: engineDir, env };
 }

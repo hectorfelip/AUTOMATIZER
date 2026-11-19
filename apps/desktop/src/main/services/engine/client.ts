@@ -411,4 +411,12 @@ export class EngineClient extends EventEmitter {
       }
     }, killAfterMs);
   }
+
+  /**
+   * Avisa o motor de que a execução ACABOU (ele fecha o que abriu, ex.: o navegador das ações web).
+   * Não cancela nem mata nada; sem motor no ar, não faz nada.
+   */
+  endExecution(executionId: string): void {
+    this.write({ type: "cancel", requestId: this.nextId("end"), payload: { executionId } });
+  }
 }

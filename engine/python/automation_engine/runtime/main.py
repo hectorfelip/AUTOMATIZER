@@ -3,7 +3,11 @@ import sys
 from typing import Optional, Sequence
 
 from .. import actions  # noqa: F401  (registra as ações embutidas)
-from .engine import OPTIONAL_MODULES, Engine
+from .engine import Engine
+
+# O selftest cobre só as bibliotecas já validadas no empacotamento (Fase 3/4); `playwright` é opcional e ainda não
+# entra no executável congelado (docs/engine-packaging.md).
+SELFTEST_MODULES = ("pywinauto", "pyautogui")
 
 
 def _selftest() -> int:
@@ -11,7 +15,7 @@ def _selftest() -> int:
     import importlib
 
     result = {}
-    for name in OPTIONAL_MODULES:
+    for name in SELFTEST_MODULES:
         try:
             importlib.import_module(name)
             result[name] = "ok"

@@ -53,17 +53,20 @@ O painel **Execução** mostra o nó atual, o estado de cada nó e, na pausa, as
 ## 7. Configurações
 Tema (claro/escuro/sistema) e **captura de tela em falhas** (desligada por padrão). Ligada, a tela é salva quando um nó falha; a imagem pode mostrar dados sensíveis, fica só neste computador e é apagada com o histórico.
 
-## 8. O que cada ação faz e seus limites
+## 8. Automação web (Navegador)
+Nós **Abrir página**, **Clicar no elemento**, **Preencher campo**, **Extrair da página**, **Esperar elemento** e **Fechar navegador**. O navegador abre em segundo plano na primeira vez, é compartilhado pelos nós do mesmo fluxo e fecha sozinho no fim (ou ao cancelar). Use **seletores** (`#id`, `.classe`, `text=Entrar`, `role=button[name='Entrar']`), não coordenadas. O texto digitado em "Preencher" não aparece nos logs. "Mostrar o navegador" ajuda a depurar. Exige o pacote `playwright` no motor e Edge/Chrome instalado; ⚠️ ainda não validado no Windows e **não incluído no motor empacotado** (veja `docs/engine-packaging.md`).
+
+## 9. O que cada ação faz e seus limites
 Referência completa em `docs/ACTIONS.md`. Em resumo: nenhuma ação **apaga** arquivos; copiar/mover checam conflitos antes de alterar e só substituem com "Sobrescrever" (confirmação na tela). Mouse e teclado têm o canto superior esquerdo da tela como botão de emergência (mover o mouse até lá interrompe).
 
-## 9. Limitações conhecidas
+## 10. Limitações conhecidas
 - ⚠️ Ações de janela, teclado e mouse (abrir app, ativar janela, digitar, atalho, clique) só funcionam no Windows e ainda não foram validadas em máquina real; cliques por coordenada dependem de resolução e escala.
 - Aplicativos executados como administrador podem ignorar teclado/mouse de um app sem elevação.
 - Automação de interface não funciona com a sessão bloqueada ou o usuário desconectado.
-- Sem gravador, automação web, OCR ou plugins (fases futuras).
+- Sem gravador, OCR ou plugins (fases futuras). Automação web: sem login persistente, abas múltiplas, upload/download.
 - Listas só vêm de "Listar arquivos" (até 2000 itens).
 
-## 10. Problemas comuns
+## 11. Problemas comuns
 | Mensagem | O que fazer |
 |---|---|
 | Motor "Indisponível" | Python 3.11+ não encontrado; veja o motivo no Dashboard. |

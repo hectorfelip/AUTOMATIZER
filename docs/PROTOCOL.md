@@ -17,7 +17,7 @@ Python → Node: `{"type", "requestId", "eventId", "payload"}` — `requestId` �
 |---|---|---|
 | `ping` | `{}` | `pong` `{uptimeMs, activeExecutions}` |
 | `execute_action` | `{executionId, nodeId, action, config}` | `action_started` → `action_progress`* → um terminal |
-| `cancel` | `{executionId}` | `cancel_ack` `{executionId, found}`; a ação termina com `action_cancelled` |
+| `cancel` | `{executionId}` | `cancel_ack` `{executionId, found}`; a ação termina com `action_cancelled`. **Também libera os recursos da execução** (ex.: navegador das ações web). O app envia `cancel` ao **fim** de toda execução (`found: false` = nada em andamento; é normal) — ADR 0012 |
 | `shutdown` | `{}` | `bye`, depois o processo encerra |
 
 `config` já chega **resolvido** (templates `{{variables.x}}` são resolvidos pelo interpretador no Node; o motor nunca avalia expressões).

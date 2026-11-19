@@ -6,6 +6,7 @@ export const CATEGORIES: { id: CategoryId; label: string }[] = [
   { id: "files", label: "Arquivos e pastas" },
   { id: "windows", label: "Janelas e aplicativos" },
   { id: "input", label: "Mouse e teclado" },
+  { id: "web", label: "Navegador" },
 ];
 
 const IN: Port[] = [{ id: "input", label: "Entrada" }];
@@ -32,6 +33,16 @@ const path = (key: string, label: string, extra: Partial<ConfigField> = {}): Con
   placeholder: "C:\\Pasta\\arquivo.txt",
   ...extra,
 });
+
+const WEB_SELECTOR: ConfigField = {
+  key: "selector",
+  label: "Seletor do elemento",
+  kind: "text",
+  required: true,
+  placeholder: "#entrar  ou  text=Entrar  ou  role=button[name='Entrar']",
+  help: "CSS (#id, .classe), texto (text=...), papel (role=...) ou xpath=... Prefira estes a coordenadas de tela.",
+};
+const WEB_TIMEOUT: ConfigField = { key: "timeoutSeconds", label: "Esperar até (s)", kind: "number", default: 10, min: 0, max: 3600 };
 
 /**
  * Contratos v1 (provisórios até a Fase 4 implementar os executores): o que cada nó expõe ao editor.
@@ -320,5 +331,92 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
         ],
       },
     ],
+  },
+  // ---- Navegador (Playwright; seletores, nunca coordenadas) ----
+  {
+    type: "web.navigate",
+    version: 1,
+    results: [r("url", "Endereço final", "string"), r("title", "Título da página", "string"), r("status", "Código HTTP", "number")],
+    label: "Abrir página",
+    category: "web",
+    description: "Abre um endereço no navegador (cria a sessão na primeira vez; as próximas chamadas navegam na mesma aba).",
+    inputs: IN,
+    outputs: OK_ERR,
+    fields: [
+      { key: "url", label: "Endereço", kind: "text", required: true, placeholder: "https://exemplo.com", help: "Só http:// ou https://." },
+      { key: "timeoutSeconds", label: "Esperar até (s)", kind: "number", default: 30, min: 1, max: 120 },
+      { key: "showBrowser", label: "Mostrar o navegador", kind: "boolean", default: false, help: "Desligado, roda em segundo plano. Vale só ao abrir a sessão." },
+    ],
+  },
+  {
+    type: "web.click",
+    version: 1,
+    label: "Clicar no elemento",
+    category: "web",
+    description: "Clica em um elemento da página.",
+    inputs: IN,
+    outputs: OK_ERR,
+    fields: [WEB_SELECTOR, WEB_TIMEOUT],
+  },
+  {
+    type: "web.fill",
+    version: 1,
+    results: [r("length", "Caracteres preenchidos", "number")],
+    label: "Preencher campo",
+    category: "web",
+    description: "Preenche um campo de texto. O texto não aparece nos logs.",
+    inputs: IN,
+    outputs: OK_ERR,
+    fields: [WEB_SELECTOR, { key: "text", label: "Texto", kind: "text", help: "Vazio limpa o campo." }, WEB_TIMEOUT],
+  },
+  {
+    type: "web.extract",
+    version: 1,
+    results: [r("text", "Primeiro valor", "string"), r("count", "Quantidade de elementos", "number"), r("items", "Todos os valores", "list")],
+    label: "Extrair da página",
+    category: "web",
+    description: "Lê o texto (ou um atributo) dos elementos encontrados, até 200.",
+    inputs: IN,
+    outputs: OK_ERR,
+    fields: [
+      WEB_SELECTOR,
+      { key: "attribute", label: "Atributo (opcional)", kind: "text", literal: true, placeholder: "href", help: "Vazio lê o texto visível. “value” lê o valor atual de um campo." },
+      WEB_TIMEOUT,
+    ],
+  },
+  {
+    type: "web.wait",
+    version: 1,
+    label: "Esperar elemento",
+    category: "web",
+    description: "Espera um elemento ficar visível, oculto, presente ou removido.",
+    inputs: IN,
+    outputs: OK_ERR,
+    fields: [
+      WEB_SELECTOR,
+      {
+        key: "state",
+        label: "Estado",
+        kind: "select",
+        default: "visible",
+        options: [
+          { value: "visible", label: "Visível" },
+          { value: "hidden", label: "Oculto" },
+          { value: "attached", label: "Presente na página" },
+          { value: "detached", label: "Removido da página" },
+        ],
+      },
+      WEB_TIMEOUT,
+    ],
+  },
+  {
+    type: "web.close",
+    version: 1,
+    label: "Fechar navegador",
+    category: "web",
+    description: "Fecha a sessão do navegador (ela também fecha sozinha ao fim da execução).",
+    inputs: IN,
+    outputs: OK_ERR,
+    fields: [],
   },
 ];
