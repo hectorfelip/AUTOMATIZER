@@ -4,3 +4,4 @@ export * from "./execution.js";
 export * from "./history.js";
 export * from "./ipc.js";
 export * from "./schemas.js";
+export * from "./schedule.js";

@@ -412,4 +412,28 @@ describe("ExecutionManager", () => {
     expect(detail.logs.length).toBeLessThanOrEqual(21);
     expect(detail.logs.at(-1)?.message).toMatch(/omitidos/);
   });
+
+  it("disparada por agendamento: modo 'scheduled', log da origem e onFinished só DEPOIS de o histórico gravar o fim", async () => {
+    const seen: { id: string; status: string; historyStatus: string }[] = [];
+    let get: () => string = () => "";
+    const { mgr, pending, history, automationId } = setup(undefined, {
+      onFinished: (id, status) => seen.push({ id, status, historyStatus: get() }),
+    });
+    get = () => history.get("exec-1").summary.status;
+    mgr.start(automationId, flow(), {}, { scheduleId: "sch-1" });
+    await tick();
+    pending[0]!.resolve({ kind: "completed", outputs: {} });
+    await tick();
+    expect(history.get("exec-1").summary.mode).toBe("scheduled");
+    expect(history.get("exec-1").logs[0]!.message).toBe("Execução iniciada pelo agendamento.");
+    expect(seen).toEqual([{ id: "exec-1", status: "completed", historyStatus: "completed" }]);
+  });
+
+  it("shutdown só resolve depois de o fim estar gravado (o banco pode fechar em seguida)", async () => {
+    const { mgr, start, history } = setup();
+    start(flow());
+    await tick();
+    await mgr.shutdown();
+    expect(history.get("exec-1").summary.status).toBe("cancelled");
+  });
 });

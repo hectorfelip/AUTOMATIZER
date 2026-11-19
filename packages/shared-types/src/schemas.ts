@@ -45,6 +45,17 @@ export const historyClearSchema = z.strictObject({ olderThanDays: z.number().int
 export const historyDiagnosticSchema = z.strictObject({ executionId: idSchema, seq: z.number().int().min(1) });
 export const exportSchema = z.strictObject({ automationId: idSchema });
 export const importConfirmSchema = z.strictObject({ token: idSchema, name: nameSchema.optional() });
+const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Informe a hora no formato HH:MM.");
+export const scheduleConfigSchema = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("once"), at: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, "Informe data e hora válidas.") }),
+  z.strictObject({ kind: z.literal("daily"), time: hhmm }),
+  z.strictObject({ kind: z.literal("weekly"), time: hhmm, days: z.array(z.number().int().min(0).max(6)).min(1, "Escolha ao menos um dia da semana.").max(7) }),
+  z.strictObject({ kind: z.literal("logon") }),
+]);
+export const createScheduleSchema = z.strictObject({ automationId: idSchema, config: scheduleConfigSchema });
+export const updateScheduleSchema = z.strictObject({ id: idSchema, config: scheduleConfigSchema });
+export const scheduleIdSchema = z.strictObject({ id: idSchema });
+export const setScheduleEnabledSchema = z.strictObject({ id: idSchema, enabled: z.boolean() });
 export const noInputSchema = z.undefined();
 
 // Trava de compilação: os tipos de entrada em ipc.ts precisam aceitar o que os schemas aceitam.

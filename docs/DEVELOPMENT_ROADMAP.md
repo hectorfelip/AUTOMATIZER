@@ -161,12 +161,12 @@ Desenvolver em entregas verticais. Cada fase deve terminar com algo executável 
 Só inicia após a Fase 6a aceita; não bloqueia o MVP.
 
 ### Tarefas
-- [ ] Criar agendamento único.
-- [ ] Criar agendamento diário e semanal.
-- [ ] Integrar com Agendador de Tarefas do Windows.
-- [ ] Exibir próxima execução e última execução.
-- [ ] Tratar computador desligado ou usuário desconectado.
-- [ ] Documentar limitações de sessão interativa.
+- [x] Criar agendamento único.
+- [x] Criar agendamento diário e semanal.
+- [x] Integrar com Agendador de Tarefas do Windows. *(implementado e testado com dublê; **não verificado em Windows**)*
+- [x] Exibir próxima execução e última execução.
+- [x] Tratar computador desligado ou usuário desconectado. *(configurado no XML da tarefa; **não verificado em Windows**)*
+- [x] Documentar limitações de sessão interativa.
 
 ### Critérios de aceite
 - Agendamentos são visíveis, editáveis e podem ser desativados.

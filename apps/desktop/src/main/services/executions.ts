@@ -53,6 +53,8 @@ export interface ExecutionManagerDeps {
     nodeId: string,
   ) => Promise<string | null>;
   captureEnabled?: () => boolean;
+  /** Chamado DEPOIS de o histórico gravar o fim (ex.: agendamento registra a última execução). */
+  onFinished?: (executionId: string, status: string) => void;
   newId?: () => string;
 }
 
@@ -71,6 +73,7 @@ export function createExecutionManager({
   workflows,
   captureDiagnostic,
   captureEnabled,
+  onFinished,
   newId = randomUUID,
 }: ExecutionManagerDeps) {
   let current: {
@@ -107,6 +110,7 @@ export function createExecutionManager({
       automationId: string,
       input: unknown,
       options: StartExecutionOptions = {},
+      source?: { scheduleId: string },
     ): StartExecutionResult {
       const parsed = parseWorkflowDocument(input);
       if (!parsed.ok) throw new AppError("VALIDATION", parsed.message);
@@ -166,7 +170,7 @@ export function createExecutionManager({
         automationId,
         workflowVersionId: version?.id ?? null,
         document: doc,
-        mode,
+        mode: source ? "scheduled" : mode,
       });
 
       const labels = new Map(
@@ -182,7 +186,7 @@ export function createExecutionManager({
           case "execution_started":
             history.log(executionId, {
               level: "info",
-              message: `Execução iniciada (${mode === "from" ? "a partir de um nó" : mode === "step" ? "passo a passo" : "normal"}).`,
+              message: source ? "Execução iniciada pelo agendamento." : `Execução iniciada (${mode === "from" ? "a partir de um nó" : mode === "step" ? "passo a passo" : "normal"}).`,
               at: e.at,
             });
             break;
@@ -249,6 +253,8 @@ export function createExecutionManager({
         }
       };
 
+      /** O registro do fim (e o aviso `onFinished`) pode demorar (capturas de tela); `shutdown` espera por ele. */
+      let finalizing: Promise<void> = Promise.resolve();
       const done = (async () => {
         try {
           await runWorkflow(doc, {
@@ -303,11 +309,12 @@ export function createExecutionManager({
                       new Promise((r) => setTimeout(r, 3000)),
                     ])
                   : Promise.resolve();
-                void wait.then(finish);
+                finalizing = wait.then(finish).then(() => safe(() => onFinished?.(executionId, e.status), "avisar o fim da execução"));
               } else safe(() => persist(e), "gravar no histórico");
               safe(() => emit(e), "emitir evento");
             },
           });
+          await finalizing;
         } catch (err) {
           console.error("[executions] erro inesperado no interpretador", err);
         } finally {

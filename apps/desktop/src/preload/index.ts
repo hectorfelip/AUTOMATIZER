@@ -53,6 +53,14 @@ const api: DesktopApi = {
     importPreview: () => ipcRenderer.invoke(IPC.exchangeImportPreview),
     importConfirm: (input) => ipcRenderer.invoke(IPC.exchangeImportConfirm, input),
   },
+  schedules: {
+    list: () => ipcRenderer.invoke(IPC.schedulesList),
+    create: (input) => ipcRenderer.invoke(IPC.schedulesCreate, input),
+    update: (input) => ipcRenderer.invoke(IPC.schedulesUpdate, input),
+    setEnabled: (input) => ipcRenderer.invoke(IPC.schedulesSetEnabled, input),
+    resync: (input) => ipcRenderer.invoke(IPC.schedulesResync, input),
+    remove: (input) => ipcRenderer.invoke(IPC.schedulesRemove, input),
+  },
   settings: {
     get: () => ipcRenderer.invoke(IPC.settingsGet),
     update: (patch) => ipcRenderer.invoke(IPC.settingsUpdate, patch),

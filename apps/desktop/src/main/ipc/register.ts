@@ -5,6 +5,10 @@ import {
   cancelExecutionSchema,
   createAutomationSchema,
   createFromTemplateSchema,
+  createScheduleSchema,
+  scheduleIdSchema,
+  setScheduleEnabledSchema,
+  updateScheduleSchema,
   exportSchema,
   importConfirmSchema,
   historyClearSchema,
@@ -25,6 +29,7 @@ import {
 } from "@automation-studio/shared-types";
 import type { AutomationService } from "../services/automations.js";
 import { AppError } from "../services/errors.js";
+import type { ScheduleService } from "../services/scheduling/schedules.js";
 import type { ExchangeService } from "../services/exchange.js";
 import type { ExecutionManager } from "../services/executions.js";
 import type { Diagnostics } from "../services/diagnostics.js";
@@ -52,6 +57,7 @@ export interface IpcDeps {
   executions: ExecutionManager;
   history: HistoryService;
   exchange: ExchangeService;
+  schedules: ScheduleService;
   diagnostics: Diagnostics;
   templates: TemplatesService;
   appInfo: AppInfo;
@@ -98,8 +104,9 @@ export function registerIpc(ipc: IpcMainLike, deps: IpcDeps): void {
   route(IPC.automationsRestore, automationIdSchema, (i) =>
     automations.setArchived(i.id, false),
   );
-  route(IPC.automationsDelete, automationIdSchema, (i) => {
+  route(IPC.automationsDelete, automationIdSchema, async (i) => {
     const files = deps.history.diagnosticPathsOf(i.id); // coletar ANTES: as linhas do histórico saem em cascata
+    await deps.schedules.removeAllFor(i.id); // tarefas do Windows saem antes; as linhas de agendamento saem em cascata
     const result = automations.remove(i.id);
     deps.diagnostics.removeFiles(files);
     return result;
@@ -156,6 +163,12 @@ export function registerIpc(ipc: IpcMainLike, deps: IpcDeps): void {
   route(IPC.exchangeExport, exportSchema, (i) => deps.exchange.exportWorkflow(i.automationId));
   route(IPC.exchangeImportPreview, noInputSchema, () => deps.exchange.importPreview());
   route(IPC.exchangeImportConfirm, importConfirmSchema, (i) => deps.exchange.importConfirm(i.token, i.name));
+  route(IPC.schedulesList, noInputSchema, () => deps.schedules.list());
+  route(IPC.schedulesCreate, createScheduleSchema, (i) => deps.schedules.create(i.automationId, i.config));
+  route(IPC.schedulesUpdate, updateScheduleSchema, (i) => deps.schedules.update(i.id, i.config));
+  route(IPC.schedulesSetEnabled, setScheduleEnabledSchema, (i) => deps.schedules.setEnabled(i.id, i.enabled));
+  route(IPC.schedulesResync, scheduleIdSchema, (i) => deps.schedules.resync(i.id));
+  route(IPC.schedulesRemove, scheduleIdSchema, (i) => deps.schedules.remove(i.id));
   route(IPC.settingsGet, noInputSchema, () => settings.get());
   route(IPC.settingsUpdate, settingsPatchSchema, (p) => settings.update(p));
   route(IPC.appInfo, noInputSchema, () => deps.appInfo);

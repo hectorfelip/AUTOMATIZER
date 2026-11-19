@@ -42,20 +42,28 @@ O painel **Execução** mostra o nó atual, o estado de cada nó e, na pausa, as
 - **Importar…** mostra um **resumo** (nós, conexões, variáveis, problemas) antes de criar a automação. Importar **nunca executa** o fluxo; revise e rode você mesmo.
 - Arquivos de versão desconhecida, inválidos ou de outros programas são recusados.
 
-## 6. Configurações
+## 6. Agendamentos
+**Agendamentos → Novo agendamento**: uma vez, todos os dias, dias da semana ou ao entrar no Windows. Você vê a próxima e a última execução (e como terminou), pode **desativar**, **editar** e **excluir**.
+- Quem dispara é o **Agendador de Tarefas do Windows**; o app não precisa estar aberto.
+- Roda a **versão salva** do fluxo, na **sua sessão** (sem administrador). Ações de mouse e teclado exigem sessão conectada e **desbloqueada**; com a tela bloqueada elas não funcionam.
+- Computador desligado na hora: a execução acontece assim que ele ligar.
+- Não roda se o agendamento estiver desativado, a automação arquivada/excluída, o fluxo nunca tiver sido salvo ou já houver outra execução; o motivo aparece em "Última".
+- ⚠️ Registro real no Windows ainda **não validado**; com o app em modo de desenvolvimento o agendamento fica só salvo ("Não registrado").
+
+## 7. Configurações
 Tema (claro/escuro/sistema) e **captura de tela em falhas** (desligada por padrão). Ligada, a tela é salva quando um nó falha; a imagem pode mostrar dados sensíveis, fica só neste computador e é apagada com o histórico.
 
-## 7. O que cada ação faz e seus limites
+## 8. O que cada ação faz e seus limites
 Referência completa em `docs/ACTIONS.md`. Em resumo: nenhuma ação **apaga** arquivos; copiar/mover checam conflitos antes de alterar e só substituem com "Sobrescrever" (confirmação na tela). Mouse e teclado têm o canto superior esquerdo da tela como botão de emergência (mover o mouse até lá interrompe).
 
-## 8. Limitações conhecidas
+## 9. Limitações conhecidas
 - ⚠️ Ações de janela, teclado e mouse (abrir app, ativar janela, digitar, atalho, clique) só funcionam no Windows e ainda não foram validadas em máquina real; cliques por coordenada dependem de resolução e escala.
 - Aplicativos executados como administrador podem ignorar teclado/mouse de um app sem elevação.
 - Automação de interface não funciona com a sessão bloqueada ou o usuário desconectado.
-- Sem agendamento, gravador, automação web, OCR ou plugins (fases futuras).
+- Sem gravador, automação web, OCR ou plugins (fases futuras).
 - Listas só vêm de "Listar arquivos" (até 2000 itens).
 
-## 9. Problemas comuns
+## 10. Problemas comuns
 | Mensagem | O que fazer |
 |---|---|
 | Motor "Indisponível" | Python 3.11+ não encontrado; veja o motivo no Dashboard. |

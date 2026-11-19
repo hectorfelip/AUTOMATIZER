@@ -16,7 +16,7 @@ export const STATUS_TONE: Record<StoredStatus, "ok" | "muted" | "danger"> = {
   failed: "danger",
   cancelled: "muted",
 };
-export const MODE_LABEL: Record<string, string> = { run: "Normal", step: "Passo a passo", from: "A partir de um nó" };
+export const MODE_LABEL: Record<string, string> = { run: "Normal", step: "Passo a passo", from: "A partir de um nó", scheduled: "Agendada" };
 
 export const formatDuration = (ms: number | null): string => (ms === null ? "—" : ms < 1000 ? `${ms} ms` : `${(ms / 1000).toFixed(1)} s`);
 export const formatWhen = (iso: string): string => new Date(iso).toLocaleString("pt-BR");

@@ -6,6 +6,7 @@
 import type { WorkflowDocument } from "@automation-studio/workflow-schema";
 import type { EngineStatus } from "./engine.js";
 import type { ExecutionEvent, StartExecutionOptions, StartExecutionResult } from "./execution.js";
+import type { CreateScheduleInput, Schedule, ScheduleIdInput, SetScheduleEnabledInput, UpdateScheduleInput } from "./schedule.js";
 import type { ClearHistoryInput, ExecutionDetail, HistoryFilters, HistoryPage, HistoryStats } from "./history.js";
 
 // ---- Entidades ----
@@ -174,6 +175,12 @@ export const IPC = {
   exchangeExport: "exchange:export",
   exchangeImportPreview: "exchange:import-preview",
   exchangeImportConfirm: "exchange:import-confirm",
+  schedulesList: "schedules:list",
+  schedulesCreate: "schedules:create",
+  schedulesUpdate: "schedules:update",
+  schedulesSetEnabled: "schedules:set-enabled",
+  schedulesResync: "schedules:resync",
+  schedulesRemove: "schedules:remove",
   settingsGet: "settings:get",
   settingsUpdate: "settings:update",
   appInfo: "app:info",
@@ -235,6 +242,15 @@ export interface DesktopApi {
     importPreview(): Promise<IpcResult<ImportPreview | null>>;
     /** Cria a automação (versão 1) a partir da prévia. Nunca executa. */
     importConfirm(input: ImportConfirmInput): Promise<IpcResult<Automation>>;
+  };
+  schedules: {
+    list(): Promise<IpcResult<Schedule[]>>;
+    create(input: CreateScheduleInput): Promise<IpcResult<Schedule>>;
+    update(input: UpdateScheduleInput): Promise<IpcResult<Schedule>>;
+    setEnabled(input: SetScheduleEnabledInput): Promise<IpcResult<Schedule>>;
+    /** Tenta registrar de novo no Agendador do Windows. */
+    resync(input: ScheduleIdInput): Promise<IpcResult<Schedule>>;
+    remove(input: ScheduleIdInput): Promise<IpcResult<null>>;
   };
   settings: {
     get(): Promise<IpcResult<AppSettings>>;

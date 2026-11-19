@@ -5,6 +5,7 @@ import { openDatabase } from "../database/db.js";
 import { createAutomationService } from "../services/automations.js";
 import { createDiagnostics } from "../services/diagnostics.js";
 import { createHistoryService } from "../services/history.js";
+import { createScheduleService } from "../services/scheduling/schedules.js";
 import { createExchangeService } from "../services/exchange.js";
 import { createExecutionManager } from "../services/executions.js";
 import { createTemplatesService } from "../services/templates.js";
@@ -37,6 +38,7 @@ beforeEach(() => {
       appInfo: { version: "0.0.0", dataPath: "/x" },
       engine: { status: { state: "unavailable", reason: "teste" } },
       history,
+      schedules: createScheduleService(db, { tasks: { supported: false, upsert: async () => ({ ok: false, message: "x" }), remove: async () => ({ ok: true }) }, command: { file: "app" } }),
       exchange: createExchangeService({ automations, workflows, appVersion: "0", io: { pickSavePath: async () => null, pickOpenPath: async () => null, statSize: () => 0, readText: () => "", writeText: () => undefined, baseName: (p) => p } }),
       diagnostics: createDiagnostics({ baseDir: "/tmp/as-diag-test", capture: async () => null }),
       executions: createExecutionManager({ engine: { status: { state: "unavailable", reason: "teste" }, executeAction: async () => ({ kind: "cancelled" }), cancel: () => undefined }, emit: () => undefined, history, workflows }),
@@ -51,14 +53,14 @@ describe("IPC", () => {
     expect([...handlers.keys()].sort()).toEqual(Object.values(IPC).sort());
   });
 
-  it("fluxo CRUD feliz", () => {
+  it("fluxo CRUD feliz", async () => {
     const created = call(IPC.automationsCreate, [{ name: "  Meu fluxo  " }]);
     expect(created).toMatchObject({ ok: true, data: { name: "Meu fluxo", description: "" } });
     const id = created.ok ? created.data.id : "";
     expect(call(IPC.automationsRename, [{ id, name: "Outro" }]).ok).toBe(true);
     expect(call(IPC.automationsArchive, [{ id }])).toMatchObject({ ok: true, data: { status: "archived" } });
     expect(call(IPC.automationsRestore, [{ id }])).toMatchObject({ ok: true, data: { status: "active" } });
-    expect(call(IPC.automationsDelete, [{ id }])).toEqual({ ok: true, data: null });
+    expect(await (call(IPC.automationsDelete, [{ id }]) as unknown as Promise<unknown>)).toEqual({ ok: true, data: null });
     expect(call(IPC.automationsList)).toEqual({ ok: true, data: [] });
   });
 
@@ -74,6 +76,12 @@ describe("IPC", () => {
     ["exportar com caminho (renderer não escolhe caminho)", IPC.exchangeExport, [{ automationId: "a", path: "/etc/passwd" }]],
     ["confirmar sem token", IPC.exchangeImportConfirm, [{}]],
     ["importar com caminho (renderer não escolhe caminho)", IPC.exchangeImportPreview, [{ path: "/etc/passwd" }]],
+    ["agendar sem automação", IPC.schedulesCreate, [{ config: { kind: "logon" } }]],
+    ["agendar tipo desconhecido", IPC.schedulesCreate, [{ automationId: "a", config: { kind: "cron", expr: "* * * * *" } }]],
+    ["agendar hora inválida", IPC.schedulesCreate, [{ automationId: "a", config: { kind: "daily", time: "25:00" } }]],
+    ["agendar semanal sem dias", IPC.schedulesCreate, [{ automationId: "a", config: { kind: "weekly", time: "10:00", days: [] } }]],
+    ["agendar campo extra (comando)", IPC.schedulesCreate, [{ automationId: "a", config: { kind: "logon", command: "calc.exe" } }]],
+    ["ativar sem booleano", IPC.schedulesSetEnabled, [{ id: "a", enabled: "sim" }]],
     ["tema inválido", IPC.settingsUpdate, [{ theme: "roxo" }]],
     ["captura não booleana", IPC.settingsUpdate, [{ captureDiagnostics: "sim" }]],
     ["execução sem automação", IPC.executionsStart, [{ document: {} }]],
@@ -102,8 +110,8 @@ describe("IPC", () => {
     expect(call(IPC.automationsList, [], "").ok).toBe(false);
   });
 
-  it("id inexistente devolve NOT_FOUND sem vazar detalhes", () => {
-    expect(call(IPC.automationsDelete, [{ id: "nope" }])).toMatchObject({ ok: false, error: { code: "NOT_FOUND" } });
+  it("id inexistente devolve NOT_FOUND sem vazar detalhes", async () => {
+    expect(await (call(IPC.automationsDelete, [{ id: "nope" }]) as unknown as Promise<unknown>)).toMatchObject({ ok: false, error: { code: "NOT_FOUND" } });
   });
 
   it("erro inesperado vira INTERNAL genérico e é logado", () => {
@@ -119,6 +127,7 @@ describe("IPC", () => {
         executions: {} as never,
         history: {} as never,
         exchange: {} as never,
+        schedules: {} as never,
         diagnostics: {} as never,
         templates: {} as never,
         isTrustedUrl: () => true,
@@ -209,7 +218,7 @@ describe("IPC", () => {
       { handle: (c, l) => void handlers.set(c, l) },
       {
         automations: {} as never, settings: {} as never, workflows: {} as never, appInfo: { version: "0", dataPath: "" }, engine: { status: { state: "starting" } },
-        executions: {} as never, history: {} as never, diagnostics: {} as never, templates: {} as never,
+        executions: {} as never, history: {} as never, diagnostics: {} as never, templates: {} as never, schedules: {} as never,
         exchange: {
           importPreview: async () => {
             throw new AppError("VALIDATION", "arquivo ruim");

@@ -1,5 +1,7 @@
 import { app, BrowserWindow, desktopCapturer, dialog, ipcMain, screen } from "electron";
-import { readFileSync, statSync, writeFileSync } from "node:fs";
+import { execFile } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import { PUSH } from "@automation-studio/shared-types";
 import { openDatabase } from "./database/db.js";
@@ -8,6 +10,9 @@ import { EngineClient } from "./services/engine/client.js";
 import { resolveEngineLaunch } from "./services/engine/launch.js";
 import { createDiagnostics } from "./services/diagnostics.js";
 import { createHistoryService } from "./services/history.js";
+import { createScheduleService } from "./services/scheduling/schedules.js";
+import { createTaskScheduler } from "./services/scheduling/taskScheduler.js";
+import { createScheduledRunner, parseLaunchArgs } from "./services/scheduledRun.js";
 import { createExchangeService } from "./services/exchange.js";
 import { createExecutionManager } from "./services/executions.js";
 import { createAutomationService } from "./services/automations.js";
@@ -65,7 +70,18 @@ if (!app.requestSingleInstanceLock()) {
       removeFiles: (paths) => diagnostics.removeFiles(paths),
     });
     history.recoverInterrupted(); // execuções que ficaram "em andamento" porque o app fechou de forma abrupta
+    // Agendamentos: o Agendador do Windows chama o app com `--run-automation=<id> --schedule=<id>`.
+    const launch = parseLaunchArgs(process.argv);
+    const scheduledRuns = new Map<string, string>(); // execução → agendamento que a disparou
+    const schedulerHolder: { current: ReturnType<typeof createScheduleService> | null } = { current: null };
     const executions = createExecutionManager({
+      onFinished: (executionId, status) => {
+        const scheduleId = scheduledRuns.get(executionId);
+        if (!scheduleId) return;
+        scheduledRuns.delete(executionId);
+        schedulerHolder.current?.recordRun(scheduleId, status);
+        if (launch) app.quit(); // este processo foi aberto só para rodar o agendamento
+      },
       engine,
       emit: (event) => broadcast(PUSH.executionEvent, event),
       history,
@@ -98,7 +114,56 @@ if (!app.requestSingleInstanceLock()) {
         baseName: (p) => basename(p),
       },
     });
+    const tasks = createTaskScheduler({
+      // só o app instalado no Windows se registra no Agendador (em desenvolvimento o executável seria o do Electron, sem o app)
+      platform: app.isPackaged ? process.platform : "linux",
+      run: (file, args) =>
+        new Promise((done) => {
+          execFile(file, args, { windowsHide: true, timeout: 30_000 }, (err, stdout, stderr) =>
+            done({ code: err ? ((err as { code?: number }).code ?? 1) : 0, stdout: String(stdout), stderr: String(stderr) }),
+          );
+        }),
+      writeTemp: (name, content) => {
+        const dir = mkdtempSync(join(tmpdir(), "as-task-"));
+        const path = join(dir, `${name}.xml`);
+        writeFileSync(path, Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(content, "utf16le")])); // o schtasks espera UTF-16 LE com BOM
+        return { path, cleanup: () => rmSync(dir, { recursive: true, force: true }) };
+      },
+    });
+    const schedules = createScheduleService(db, { tasks, command: { file: process.execPath } });
+    schedulerHolder.current = schedules;
+    void schedules.refresh();
+    const waitEngineReady = () =>
+      new Promise<boolean>((done) => {
+        const check = () => (engine.status.state === "ready" ? true : engine.status.state === "unavailable" ? false : null);
+        const now = check();
+        if (now !== null) return done(now);
+        const timer = setTimeout(() => (engine.off("status", on), done(false)), 30_000);
+        const on = () => {
+          const r = check();
+          if (r === null) return;
+          clearTimeout(timer);
+          engine.off("status", on);
+          done(r);
+        };
+        engine.on("status", on);
+      });
+    const runner = createScheduledRunner({
+      waitEngineReady,
+      isRunning: () => executions.isRunning(),
+      loadSaved: (id) => workflows.load(id),
+      automationStatus: (id) => automations.list().find((a) => a.id === id)?.status ?? null,
+      scheduleEnabled: (id) => schedules.list().find((s) => s.id === id)?.enabled ?? null,
+      start: (automationId, doc, scheduleId) => {
+        const r = executions.start(automationId, doc, {}, { scheduleId });
+        scheduledRuns.set(r.executionId, scheduleId);
+        return r;
+      },
+      recordSkipped: (id, why) => schedules.recordRun(id, why),
+      log: (m) => console.warn(`[agendamento] ${m}`),
+    });
     registerIpc(ipcMain, {
+      schedules,
       exchange,
       templates: createTemplatesService({ automations, workflows }),
       engine,
@@ -114,6 +179,13 @@ if (!app.requestSingleInstanceLock()) {
     });
     createMainWindow();
     engine.start(); // não bloqueia: a interface abre e o indicador acompanha o status
+    // aberto pelo Agendador: roda e, se não conseguiu nem começar, fecha; se começou, fecha ao terminar (onFinished)
+    if (launch) void runner.run(launch).then((outcome) => outcome === "skipped" && app.quit());
+    // app já aberto e o Agendador chamou de novo: a instância em execução cuida (sem roubar o foco)
+    app.on("second-instance", (_e, argv) => {
+      const l = parseLaunchArgs(argv);
+      if (l) void runner.run(l);
+    });
 
     // Ao sair: cancela a execução, pede ao motor que encerre (até 2 s) e só então fecha o banco.
     let closing = false;
