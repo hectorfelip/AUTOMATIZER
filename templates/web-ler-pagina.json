@@ -1,0 +1,34 @@
+{
+  "meta": {
+    "id": "web-ler-pagina",
+    "name": "Ler o título e os links de uma página",
+    "description": "Abre um endereço no navegador, lê o título principal e conta os links. Exige o pacote playwright no motor e o Edge ou Chrome instalado.",
+    "windowsOnly": false
+  },
+  "workflow": {
+    "schemaVersion": 1,
+    "id": "template",
+    "name": "template",
+    "nodes": [
+      { "id": "start", "type": "trigger.manual", "version": 1, "config": {} },
+      { "id": "abrir", "type": "web.navigate", "version": 1, "config": { "url": "{{variables.endereco}}", "timeoutSeconds": 30, "showBrowser": false } },
+      { "id": "titulo", "type": "web.extract", "version": 1, "config": { "selector": "h1", "attribute": "", "timeoutSeconds": 10 } },
+      { "id": "links", "type": "web.extract", "version": 1, "config": { "selector": "a", "attribute": "href", "timeoutSeconds": 10 } },
+      { "id": "guardar", "type": "data.set_variable", "version": 1, "config": { "name": "resumo", "value": "{{nodes.titulo.text}} ({{nodes.links.count}} links)" } },
+      { "id": "fim", "type": "flow.end", "version": 1, "config": { "message": "Página lida. Veja a variável “resumo”." } }
+    ],
+    "edges": [
+      { "id": "e1", "source": "start", "sourceHandle": "next", "target": "abrir", "targetHandle": "input" },
+      { "id": "e2", "source": "abrir", "sourceHandle": "success", "target": "titulo", "targetHandle": "input" },
+      { "id": "e3", "source": "titulo", "sourceHandle": "success", "target": "links", "targetHandle": "input" },
+      { "id": "e4", "source": "links", "sourceHandle": "success", "target": "guardar", "targetHandle": "input" },
+      { "id": "e5", "source": "guardar", "sourceHandle": "next", "target": "fim", "targetHandle": "input" }
+    ],
+    "variables": {
+      "endereco": { "type": "string", "value": "https://example.com" },
+      "resumo": { "type": "string", "value": "" }
+    },
+    "settings": { "timeoutSeconds": 120, "errorPolicy": "stop" },
+    "visual": { "positions": { "start": { "x": 0, "y": 80 }, "abrir": { "x": 240, "y": 80 }, "titulo": { "x": 480, "y": 80 }, "links": { "x": 720, "y": 80 }, "guardar": { "x": 960, "y": 80 }, "fim": { "x": 1200, "y": 80 } } }
+  }
+}

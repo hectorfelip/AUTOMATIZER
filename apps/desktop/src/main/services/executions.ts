@@ -17,6 +17,7 @@ import {
   RunControl,
   runWorkflow,
   type ActionExecutor,
+  type SubflowLookup,
 } from "@automation-studio/workflow-interpreter";
 import {
   hasErrors,
@@ -48,6 +49,8 @@ export interface ExecutionManagerDeps {
       automationId: string,
       doc: WorkflowDocument,
     ): { id: number; number: number } | null;
+    /** Fluxos chamados por "Chamar fluxo" (versão salva, ativos). */
+    subflowLookup(automationId: string): SubflowLookup;
   };
   /** Captura opcional da tela quando um nó falha (só se `captureEnabled()`); devolve o caminho do arquivo. */
   captureDiagnostic?: (
@@ -192,6 +195,9 @@ export function createExecutionManager({
               at: e.at,
             });
             break;
+          case "node_started":
+            labels.set(e.nodeId, e.label); // inclui nós de fluxos chamados (`sub/w`)
+            break;
           case "node_completed":
             history.log(executionId, {
               level: "info",
@@ -265,6 +271,7 @@ export function createExecutionManager({
             signal: controller.signal,
             control,
             mode,
+            subflows: { load: (id) => workflows.subflowLookup(id) },
             ...(options.fromNodeId ? { startAt: options.fromNodeId } : {}),
             ...(options.variables ? { variables: options.variables } : {}),
             onEvent: (e) => {

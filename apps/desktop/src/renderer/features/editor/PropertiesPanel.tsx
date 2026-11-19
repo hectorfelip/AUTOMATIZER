@@ -6,6 +6,7 @@ import { Dialog } from "../../components/ui/Dialog";
 import { currentDoc, issuesOf, useEditor } from "../../stores/editor";
 import { duplicateNodes, removeNodes, updateNodeConfig } from "./docOps";
 import { FieldInput } from "./FieldInput";
+import { SubflowParams } from "./SubflowParams";
 
 export function PropertiesPanel() {
   const doc = useEditor(currentDoc)!;
@@ -91,6 +92,13 @@ export function PropertiesPanel() {
           }}
         />
       ))}
+      {def.dynamicFieldPrefix && (
+        <SubflowParams
+          node={node}
+          refs={refs}
+          errors={Object.fromEntries(mine.filter((i) => i.field?.startsWith(def.dynamicFieldPrefix!)).map((i) => [i.field!, i.message.replace(`${def.label}: `, "")]))}
+        />
+      )}
       {actions}
       <Dialog open={confirmOverwrite === node.id} title="Sobrescrever arquivos?" onClose={() => setConfirmOverwrite(null)}>
         <p>

@@ -24,7 +24,8 @@ export type IssueCode =
   | "NOT_A_LIST"
   | "INVALID_VARIABLE"
   | "UNREACHABLE_NODE"
-  | "CYCLE_NO_EXIT";
+  | "CYCLE_NO_EXIT"
+  | "SUBFLOW_SELF";
 
 export interface Issue {
   severity: Severity;

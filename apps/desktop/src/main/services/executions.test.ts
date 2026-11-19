@@ -453,4 +453,54 @@ describe("ExecutionManager", () => {
     await tick();
     expect(calls).toEqual(["ex-end"]);
   });
+
+  it("Chamar fluxo: roda a versão SALVA do outro fluxo, grava no histórico os nós internos com nome legível e devolve o retorno", async () => {
+    const f = fakeEngine();
+    const db = openDatabase(":memory:");
+    const automations = createAutomationService(db);
+    const wf = createWorkflowService(db);
+    const history = createHistoryService(db);
+    const sub = automations.create({ name: "Rotina interna", description: "" });
+    const subDoc = createEmptyWorkflow(sub.id, "Rotina interna");
+    subDoc.variables["saida"] = { type: "string", value: "padrão" };
+    subDoc.nodes.push({ id: "w", type: "flow.wait", version: 1, config: { seconds: 0 } }, { id: "end", type: "flow.end", version: 1, config: {} });
+    subDoc.edges.push({ id: "e1", source: "start", sourceHandle: "next", target: "w", targetHandle: "input" }, { id: "e2", source: "w", sourceHandle: "next", target: "end", targetHandle: "input" });
+    wf.save(sub.id, subDoc);
+    const main = automations.create({ name: "Principal", description: "" });
+    const mainDoc = createEmptyWorkflow(main.id, "Principal");
+    mainDoc.variables["r"] = { type: "string", value: "" };
+    mainDoc.nodes.push(
+      { id: "chama", type: "flow.subflow", version: 1, config: { automationId: sub.id, "arg.saida": "olá" } },
+      { id: "guarda", type: "data.set_variable", version: 1, config: { name: "r", value: "{{nodes.chama.outputs.saida}}" } },
+      { id: "end", type: "flow.end", version: 1, config: {} },
+    );
+    mainDoc.edges.push(
+      { id: "e1", source: "start", sourceHandle: "next", target: "chama", targetHandle: "input" },
+      { id: "e2", source: "chama", sourceHandle: "success", target: "guarda", targetHandle: "input" },
+      { id: "e3", source: "guarda", sourceHandle: "next", target: "end", targetHandle: "input" },
+    );
+    wf.save(main.id, mainDoc);
+    // rascunho do fluxo chamado NÃO conta: só a versão salva roda (aqui o salvo é o único)
+    const mgr = createExecutionManager({ engine: f.engine, emit: () => undefined, newId: () => "ex-sub", history, workflows: wf });
+    mgr.start(main.id, mainDoc);
+    await tick();
+    expect(f.pending[0]!.req).toMatchObject({ action: "flow.wait", nodeId: "w" }); // a ação do fluxo chamado chegou ao motor
+    f.pending[0]!.resolve({ kind: "completed", outputs: {} });
+    await tick();
+    const d = history.get("ex-sub");
+    expect(d.summary.status).toBe("completed");
+    expect(d.snapshot?.variables["r"]).toBe("olá");
+    const text = d.logs.map((l) => l.message).join("\n");
+    expect(text).toContain("Rotina interna › Esperar: concluído");
+    expect(text).toContain("Chamar fluxo: concluído — Fluxo “Rotina interna” concluído.");
+
+    // arquivar o fluxo chamado: a próxima chamada falha apontando o nó e o motivo (e nada roda)
+    automations.setArchived(sub.id, true);
+    const mgr2 = createExecutionManager({ engine: f.engine, emit: () => undefined, newId: () => "ex-sub2", history, workflows: wf });
+    mgr2.start(main.id, mainDoc);
+    await tick();
+    const d2 = history.get("ex-sub2");
+    expect(d2.summary).toMatchObject({ status: "failed", errorNodeId: "chama" });
+    expect(d2.summary.errorMessage).toContain("arquivado");
+  });
 });

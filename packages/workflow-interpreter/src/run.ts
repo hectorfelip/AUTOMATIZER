@@ -22,6 +22,26 @@ export interface ActionExecutor {
   execute(req: ActionRequest, ctl: { signal: AbortSignal; onProgress: (p: ActionProgress) => void }): Promise<ActionOutcome>;
 }
 
+/** Resultado de procurar o fluxo a chamar (quem chama decide de onde ele vem; o interpretador só executa). */
+export type SubflowLookup = { ok: true; doc: WorkflowDocument; name: string } | { ok: false; code: string; message: string };
+export interface SubflowProvider {
+  load(automationId: string): SubflowLookup;
+}
+
+/** Máximo de fluxos encadeados (A chama B chama C…), contando o principal. */
+export const MAX_SUBFLOW_DEPTH = 5;
+
+/** Preenchido só quando este fluxo roda DENTRO de outro (nó "Chamar fluxo"). */
+export interface NestInfo {
+  /** Caminho do nó "Chamar fluxo" a partir do fluxo principal (`a/b`): prefixo dos ids de nó para breakpoints e passo a passo. */
+  prefix: string;
+  calleeName: string;
+  /** Ids de automação já na cadeia de chamadas (detecta ciclo). */
+  callStack: string[];
+  /** Prazos dos fluxos de fora: parados junto quando a execução pausa (tempo pausado não conta para nenhum). */
+  pauseWith: Deadline[];
+}
+
 export interface RunOptions {
   executionId: string;
   executor: ActionExecutor;
@@ -39,12 +59,20 @@ export interface RunOptions {
   mode?: ExecutionMode;
   /** Sobrescreve o timeout do fluxo (testes). */
   timeoutMs?: number;
+  /** De onde vêm os fluxos chamados; sem isto, "Chamar fluxo" falha com mensagem clara. */
+  subflows?: SubflowProvider;
+  nest?: NestInfo;
 }
 
 export interface RunResult {
   status: ExecutionStatus;
   error?: ExecutionError;
   durationMs: number;
+  /** Variáveis no fim (o "retorno" de um fluxo chamado por outro). */
+  variables?: Record<string, Scalar>;
+  /** Nó que causou a falha que encerrou o fluxo. */
+  failedNodeId?: string;
+  warnings?: number;
 }
 
 /** Rede de segurança contra loop infinito; o timeout global é a outra. Alto de propósito: "Repetir" aceita até 100 000 voltas. */
@@ -81,6 +109,7 @@ export async function runWorkflow(doc: WorkflowDocument, opts: RunOptions): Prom
   let warnings = 0;
   let deadline: Deadline | null = null;
   let snapshotNow: (() => ContextSnapshot) | null = null;
+  let finalVariables: (() => Record<string, Scalar>) | null = null;
   const finish = (status: ExecutionStatus, error?: ExecutionError, message?: string, failedNodeId?: string): RunResult => {
     deadline?.dispose();
     const durationMs = now().getTime() - startedAt;
@@ -98,7 +127,7 @@ export async function runWorkflow(doc: WorkflowDocument, opts: RunOptions): Prom
       ...(warnings ? { warnings } : {}),
       ...(snapshotNow ? { snapshot: snapshotNow() } : {}),
     });
-    return { status: final, durationMs, ...(error ? { error } : {}) };
+    return { status: final, durationMs, ...(error ? { error } : {}), ...(failedNodeId ? { failedNodeId } : {}), ...(warnings ? { warnings } : {}), ...(finalVariables ? { variables: finalVariables() } : {}) };
   };
 
   // ---- 1. validação (o interpretador nunca executa um fluxo inválido) ----
@@ -127,6 +156,7 @@ export async function runWorkflow(doc: WorkflowDocument, opts: RunOptions): Prom
   const ctx = createContext(doc);
   const variables = ctx.variables; // atalho: Definir variável altera o contexto desta execução
   snapshotNow = () => buildSnapshot(ctx);
+  finalVariables = () => ({ ...variables });
   for (const [name, raw] of Object.entries(opts.variables ?? {})) {
     const coerced = coerceToDeclared(name, raw, doc.variables[name]?.type);
     if (!coerced.ok) return finish("failed", { code: "INVALID_CONFIG", message: `Valor inicial inválido: ${coerced.message}` });
@@ -206,11 +236,73 @@ export async function runWorkflow(doc: WorkflowDocument, opts: RunOptions): Prom
     return { kind: "completed", outputs: { index, count }, next: "body", message: `Item ${index} de ${count}.` };
   };
 
+  /** "Chamar fluxo": roda a versão salva de outra automação aqui dentro, com as variáveis dela como parâmetros. */
+  const callSubflow = async (node: WorkflowNode): Promise<ActionOutcome> => {
+    const targetId = node.config["automationId"];
+    if (typeof targetId !== "string" || targetId === "") return invalid("Escolha o fluxo a chamar.");
+    if (!opts.subflows) return invalid("Este ambiente não permite chamar outros fluxos.");
+    const stack = opts.nest?.callStack ?? [doc.id];
+    if (stack.includes(targetId)) {
+      return { kind: "failed", error: { code: "SUBFLOW_CYCLE", message: "Chamada em ciclo: este fluxo já está na cadeia de chamadas e chamá-lo de novo nunca terminaria." } };
+    }
+    if (stack.length >= MAX_SUBFLOW_DEPTH) {
+      return { kind: "failed", error: { code: "SUBFLOW_DEPTH", message: `Fluxos chamados demais em cadeia (máximo ${MAX_SUBFLOW_DEPTH}).` } };
+    }
+    const found = opts.subflows.load(targetId);
+    if (!found.ok) return { kind: "failed", error: { code: found.code, message: found.message } };
+
+    // parâmetros: `arg.<variável>`; cada um precisa existir no fluxo chamado
+    const rawArgs: Record<string, string | number | boolean | null> = {};
+    for (const [k, v] of Object.entries(node.config)) if (k.startsWith("arg.") && k.length > 4) rawArgs[k] = v;
+    const resolved = resolveConfig(rawArgs, ctx, Object.fromEntries(Object.keys(rawArgs).map((k) => [k, "text" as const])));
+    if (!resolved.ok) return invalid(resolved.message);
+    const args: Record<string, Scalar> = {};
+    for (const [k, v] of Object.entries(resolved.config)) {
+      const name = k.slice(4);
+      if (!Object.prototype.hasOwnProperty.call(found.doc.variables, name)) {
+        return invalid(`O fluxo “${found.name}” não tem a variável “${name}”. Atualize os parâmetros deste nó.`);
+      }
+      if (v === null || v === "") continue; // vazio = manter o valor padrão do fluxo chamado
+      args[name] = v as Scalar;
+    }
+
+    const wrap = (e: ExecutionEvent): void => {
+      if (e.type === "execution_started" || e.type === "execution_finished") return; // o fluxo de fora é quem começa e termina
+      const named = "nodeId" in e && typeof e.nodeId === "string" ? { ...e, nodeId: `${node.id}/${e.nodeId}` } : e;
+      if (named.type === "node_started") emit({ ...named, label: `${found.name} › ${named.label}` });
+      else if (named.type === "execution_paused") emit({ ...named, label: `${found.name} › ${named.label}` });
+      else emit(named);
+    };
+    const inner = await runWorkflow(found.doc, {
+      executionId,
+      executor,
+      onEvent: wrap,
+      signal,
+      ...(opts.control ? { control: opts.control } : {}),
+      now,
+      variables: args,
+      subflows: opts.subflows,
+      nest: { prefix: opts.nest ? `${opts.nest.prefix}/${node.id}` : node.id, calleeName: found.name, callStack: [...stack, targetId], pauseWith: [...(opts.nest?.pauseWith ?? []), dl] },
+    });
+    if (inner.status === "cancelled") return { kind: "cancelled" };
+    if (inner.status === "failed") {
+      const where = inner.failedNodeId ? ` (nó ${inner.failedNodeId})` : "";
+      const code = inner.error?.code ?? "SUBFLOW_FAILED";
+      return { kind: "failed", error: { code: isContinuable(code) ? "SUBFLOW_FAILED" : code, message: `O fluxo “${found.name}” falhou${where}: ${inner.error?.message ?? "erro desconhecido"}`, ...(inner.error?.details ? { details: inner.error.details } : {}) } };
+    }
+    if (inner.status === "completed_with_warnings") warnings++;
+    return {
+      kind: "completed",
+      outputs: { outputs: { ...(inner.variables ?? {}) }, status: inner.status },
+      message: `Fluxo “${found.name}” ${inner.status === "completed_with_warnings" ? "concluído com avisos" : "concluído"}.`,
+    };
+  };
+
   if (opts.startAt !== undefined && !nodes.has(opts.startAt)) {
     return finish("failed", { code: "INVALID_WORKFLOW", message: "O nó escolhido para começar não existe neste fluxo." });
   }
   let current: string | undefined = opts.startAt ?? doc.nodes.find((n) => n.type === "trigger.manual")!.id;
-  if (opts.control) {
+  if (opts.control && !opts.nest) { // dentro de um fluxo chamado, quem avisa o pedido de pausa é o fluxo de fora
     opts.control.onPauseRequested = () => emit({ type: "execution_pause_requested", executionId, at: at(), nodeId: current ?? null });
   }
   for (let steps = 0; current !== undefined; steps++) {
@@ -221,13 +313,16 @@ export async function runWorkflow(doc: WorkflowDocument, opts: RunOptions): Prom
     }
     if (opts.control) {
       const at0 = current;
-      await opts.control.gate(at0, signal, {
+      // breakpoints/passo usam o caminho completo (`sub/w` dentro de um fluxo chamado)
+      await opts.control.gate(opts.nest ? `${opts.nest.prefix}/${at0}` : at0, signal, {
         paused: (reason) => {
-          dl.pause(); // o tempo parado não conta para o timeout
+          dl.pause(); // o tempo parado não conta para o timeout (nem o dos fluxos de fora, se este é um fluxo chamado)
+          for (const d of opts.nest?.pauseWith ?? []) d.pause();
           emit({ type: "execution_paused", executionId, at: at(), nodeId: at0, label: getNodeDefinition(nodes.get(at0)!.type)?.label ?? at0, reason, snapshot: buildSnapshot(ctx) });
         },
         resumed: () => {
           dl.resume();
+          for (const d of opts.nest?.pauseWith ?? []) d.resume();
           emit({ type: "execution_resumed", executionId, at: at() });
         },
       });
@@ -254,6 +349,8 @@ export async function runWorkflow(doc: WorkflowDocument, opts: RunOptions): Prom
       outcome = repeat(node);
     } else if (node.type === "flow.foreach") {
       outcome = foreach(node);
+    } else if (node.type === "flow.subflow") {
+      outcome = await callSubflow(node);
     } else {
       const resolved = resolveConfig(node.config, ctx, Object.fromEntries(def.fields.map((f) => [f.key, f.kind])));
       if (!resolved.ok) {

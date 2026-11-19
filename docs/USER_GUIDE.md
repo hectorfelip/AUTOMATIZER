@@ -56,17 +56,21 @@ Tema (claro/escuro/sistema) e **captura de tela em falhas** (desligada por padr�
 ## 8. Automação web (Navegador)
 Nós **Abrir página**, **Clicar no elemento**, **Preencher campo**, **Extrair da página**, **Esperar elemento** e **Fechar navegador**. O navegador abre em segundo plano na primeira vez, é compartilhado pelos nós do mesmo fluxo e fecha sozinho no fim (ou ao cancelar). Use **seletores** (`#id`, `.classe`, `text=Entrar`, `role=button[name='Entrar']`), não coordenadas. O texto digitado em "Preencher" não aparece nos logs. "Mostrar o navegador" ajuda a depurar. Exige o pacote `playwright` no motor e Edge/Chrome instalado; ⚠️ ainda não validado no Windows e **não incluído no motor empacotado** (veja `docs/engine-packaging.md`).
 
-## 9. O que cada ação faz e seus limites
+## 9. Subfluxos (Chamar fluxo)
+O nó **Chamar fluxo** (Controle) executa **outra automação** e continua quando ela terminar. Escolha o fluxo no nó: as **variáveis dele viram os parâmetros** (deixe vazio para usar o valor padrão) e, ao terminar, as variáveis finais voltam em `{{nodes.<id>.outputs.<variável>}}` (o painel mostra a lista). Roda a **versão salva** do outro fluxo (salve-o antes). Pausa, passo a passo e breakpoints entram no fluxo chamado; os nós dele aparecem como "Fluxo › Nó".
+Limites: até 5 fluxos encadeados; ciclos (A chama B que chama A) param com mensagem clara; renomear uma variável do fluxo chamado exige atualizar os chamadores; exportar um fluxo não leva os fluxos que ele chama.
+
+## 10. O que cada ação faz e seus limites
 Referência completa em `docs/ACTIONS.md`. Em resumo: nenhuma ação **apaga** arquivos; copiar/mover checam conflitos antes de alterar e só substituem com "Sobrescrever" (confirmação na tela). Mouse e teclado têm o canto superior esquerdo da tela como botão de emergência (mover o mouse até lá interrompe).
 
-## 10. Limitações conhecidas
+## 11. Limitações conhecidas
 - ⚠️ Ações de janela, teclado e mouse (abrir app, ativar janela, digitar, atalho, clique) só funcionam no Windows e ainda não foram validadas em máquina real; cliques por coordenada dependem de resolução e escala.
 - Aplicativos executados como administrador podem ignorar teclado/mouse de um app sem elevação.
 - Automação de interface não funciona com a sessão bloqueada ou o usuário desconectado.
 - Sem gravador, OCR ou plugins (fases futuras). Automação web: sem login persistente, abas múltiplas, upload/download.
 - Listas só vêm de "Listar arquivos" (até 2000 itens).
 
-## 11. Problemas comuns
+## 12. Problemas comuns
 | Mensagem | O que fazer |
 |---|---|
 | Motor "Indisponível" | Python 3.11+ não encontrado; veja o motivo no Dashboard. |

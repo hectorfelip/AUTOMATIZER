@@ -388,3 +388,49 @@ describe("alcançabilidade e ciclos", () => {
     expect(validateWorkflow(doc)).toEqual([]);
   });
 });
+
+describe("Chamar fluxo (flow.subflow)", () => {
+  const withSub = (config: Record<string, ConfigValue>) => {
+    doc.nodes = doc.nodes.filter((n) => n.id !== "w" && n.id !== "sub");
+    doc.edges = [];
+    node("sub", "flow.subflow", config);
+    edge("start", "next", "sub");
+    edge("sub", "success", "end");
+  };
+
+  it("exige o fluxo a chamar; aceita só um valor fixo (não {{ }})", () => {
+    withSub({});
+    expect(find("REQUIRED_FIELD")).toMatchObject({ nodeId: "sub", field: "automationId" });
+    withSub({ automationId: "{{variables.x}}" });
+    expect(codes()).toContain("INVALID_FIELD");
+  });
+
+  it("um fluxo não pode chamar a si mesmo", () => {
+    withSub({ automationId: "f" });
+    expect(find("SUBFLOW_SELF")).toMatchObject({ severity: "error", nodeId: "sub" });
+    withSub({ automationId: "outro" });
+    expect(codes()).not.toContain("SUBFLOW_SELF");
+  });
+
+  it("parâmetros arg.* aceitam {{ }} e são validados como os demais campos", () => {
+    doc.variables = { pasta: { type: "string", value: "C:\\x" } };
+    withSub({ automationId: "outro", "arg.p": "{{variables.pasta}}" });
+    expect(validateWorkflow(doc)).toEqual([]);
+    withSub({ automationId: "outro", "arg.p": "{{variables.naoexiste}}" });
+    expect(find("UNKNOWN_VARIABLE")).toMatchObject({ nodeId: "sub", field: "arg.p" });
+    expect(find("UNKNOWN_VARIABLE")!.message).toContain("Parâmetro “p”");
+    withSub({ automationId: "outro", "arg.p": "{{nodes.fantasma.x}}" });
+    expect(codes()).toContain("UNKNOWN_NODE_REF");
+  });
+
+  it("o retorno {{nodes.<id>.outputs.<variável>}} é aceito; resultado inexistente é recusado", () => {
+    withSub({ automationId: "outro" });
+    node("usa", "data.set_variable", { name: "r", value: "{{nodes.sub.outputs.total}}" });
+    doc.edges = doc.edges.filter((e) => !(e.source === "sub"));
+    edge("sub", "success", "usa");
+    edge("usa", "next", "end");
+    expect(validateWorkflow(doc).filter((i) => i.severity === "error")).toEqual([]);
+    doc.nodes.find((n) => n.id === "usa")!.config["value"] = "{{nodes.sub.inexistente}}";
+    expect(find("UNKNOWN_RESULT")!.message).toContain("outputs");
+  });
+});

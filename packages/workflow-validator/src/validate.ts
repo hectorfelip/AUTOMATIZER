@@ -84,7 +84,14 @@ function validateConfig(node: WorkflowNode, def: NodeDefinition, ctx: Ctx): Issu
   };
   const at = (f: ConfigField, code: Issue["code"], msg: string): void => emit(f, "error", code, msg);
 
-  for (const f of def.fields) {
+  // parâmetros dinâmicos (ex.: `arg.pasta` de "Chamar fluxo"): texto que aceita {{ }}, validado como os demais
+  const prefix = def.dynamicFieldPrefix;
+  const dynamic: ConfigField[] = prefix
+    ? Object.keys(node.config)
+        .filter((k) => k.startsWith(prefix) && k.length > prefix.length)
+        .map((k) => ({ key: k, label: `Parâmetro “${k.slice(prefix.length)}”`, kind: "text" as const }))
+    : [];
+  for (const f of [...def.fields, ...dynamic]) {
     const v = node.config[f.key];
     if (isBlank(v)) {
       if (f.required) at(f, "REQUIRED_FIELD", `o campo “${f.label}” é obrigatório.`);
@@ -173,6 +180,9 @@ export function validateWorkflow(doc: WorkflowDocument): Issue[] {
       continue;
     }
     issues.push(...validateConfig(n, def, ctx));
+    if (n.type === "flow.subflow" && n.config["automationId"] === doc.id) {
+      issues.push({ severity: "error", code: "SUBFLOW_SELF", message: `${def.label}: um fluxo não pode chamar a si mesmo.`, nodeId: n.id, field: "automationId" });
+    }
   }
 
   // ---- início e nós únicos ----

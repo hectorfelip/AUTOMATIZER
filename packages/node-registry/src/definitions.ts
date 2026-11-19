@@ -151,6 +151,19 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
       },
     ],
   },
+  {
+    type: "flow.subflow",
+    version: 1,
+    results: [r("outputs", "Variáveis finais do fluxo chamado", "object"), r("status", "Como terminou", "string")],
+    label: "Chamar fluxo",
+    category: "control",
+    description:
+      "Executa outra automação (a versão salva) e continua quando ela terminar. As variáveis do fluxo chamado são os parâmetros; as variáveis finais voltam em {{nodes.<id>.outputs.<variável>}}.",
+    inputs: IN,
+    outputs: OK_ERR,
+    dynamicFieldPrefix: "arg.",
+    fields: [{ key: "automationId", label: "Fluxo a chamar", kind: "automation", required: true, literal: true }],
+  },
   // ---- Dados ----
   {
     type: "data.set_variable",

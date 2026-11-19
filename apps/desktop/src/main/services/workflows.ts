@@ -1,6 +1,7 @@
 import type { DatabaseSync } from "node:sqlite";
 import type { WorkflowLoadResult, WorkflowSaveResult } from "@automation-studio/shared-types";
 import { LIMITS, createEmptyWorkflow, parseWorkflowDocument, type WorkflowDocument } from "@automation-studio/workflow-schema";
+import type { SubflowLookup } from "@automation-studio/workflow-interpreter";
 import { AppError } from "./errors.js";
 
 interface AutomationRow {
@@ -64,6 +65,21 @@ export function createWorkflowService(db: DatabaseSync, now: () => string = () =
         .prepare("SELECT id, version_number, definition_json FROM workflow_versions WHERE automation_id = ? AND version_number = ?")
         .get(a.id, a.current_version) as { id: number; version_number: number; definition_json: string } | undefined;
       return row && sameContent(row.definition_json, normalize(doc, a)) ? { id: row.id, number: row.version_number } : null;
+    },
+
+    /** Para "Chamar fluxo": a versão SALVA de uma automação ativa. Nunca lança; o motivo vai para o nó que chamou. */
+    subflowLookup(automationId: string): SubflowLookup {
+      const row = db.prepare("SELECT id, name, status, current_version FROM automations WHERE id = ?").get(automationId) as
+        | { id: string; name: string; status: string; current_version: number }
+        | undefined;
+      if (!row) return { ok: false, code: "SUBFLOW_NOT_FOUND", message: "O fluxo chamado não existe mais (foi excluído?). Escolha outro no nó." };
+      if (row.status === "archived") return { ok: false, code: "SUBFLOW_UNAVAILABLE", message: `O fluxo “${row.name}” está arquivado. Restaure-o ou escolha outro.` };
+      if (row.current_version === 0) return { ok: false, code: "SUBFLOW_UNAVAILABLE", message: `O fluxo “${row.name}” nunca foi salvo. Salve-o no editor antes de chamá-lo.` };
+      try {
+        return { ok: true, doc: this.load(row.id).document, name: row.name };
+      } catch {
+        return { ok: false, code: "SUBFLOW_UNAVAILABLE", message: `O fluxo “${row.name}” não pôde ser lido (dados corrompidos).` };
+      }
     },
 
     automationExists: (automationId: string): boolean => db.prepare("SELECT 1 FROM automations WHERE id = ?").get(automationId) !== undefined,

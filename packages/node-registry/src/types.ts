@@ -1,6 +1,6 @@
 import type { ConfigValue } from "@automation-studio/workflow-schema";
 
-export type FieldKind = "text" | "path" | "number" | "boolean" | "select" | "list";
+export type FieldKind = "text" | "path" | "number" | "boolean" | "select" | "list" | "automation";
 
 /** Parâmetro configurável de um nó. A UI (painel de propriedades) e o validador derivam disto. */
 export interface ConfigField {
@@ -54,4 +54,6 @@ export interface NodeDefinition {
   results?: ResultDef[];
   /** No máximo uma instância por fluxo (ex.: início). */
   unique?: boolean;
+  /** Chaves extras de config com este prefixo (ex.: `arg.`) são parâmetros de texto validados como os demais. */
+  dynamicFieldPrefix?: string;
 }

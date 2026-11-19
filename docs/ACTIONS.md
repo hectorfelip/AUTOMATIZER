@@ -11,6 +11,7 @@ Todas as ações recebem a config já com `{{variables.x}}` resolvido e devolvem
 | `data.set_variable` | `name` (fixo), `value` | `next` | Converte ao tipo declarado da variável; `INVALID_CONFIG` se não der (ex.: "abc" em número) |
 | `flow.condition` | `left`, `operator`, `right` | `true`, `false` | Números comparam como número (`"10" > "9"`); `maior/menor` com texto = `INVALID_CONFIG` |
 | `flow.repeat` | `times` (1–100000, aceita `{{nodes.x.count}}`) | `body`, `done` | **Ligue o fim do corpo de volta à entrada do nó.** Sem a volta, o fluxo termina após uma passagem |
+| `flow.subflow` | `automationId` (fixo), `arg.<variável>` (um por parâmetro; aceita `{{ }}`) | `success`, `error` | Roda a versão **salva** de outra automação ativa. Resultados: `outputs` (variáveis finais do chamado: `{{nodes.id.outputs.nome}}`), `status`. Erros: `SUBFLOW_NOT_FOUND`/`SUBFLOW_UNAVAILABLE` (inexistente, arquivado, nunca salvo), `SUBFLOW_CYCLE`, `SUBFLOW_DEPTH` (máx. 5), `SUBFLOW_FAILED` (com nome do fluxo e nó) — ADR 0013 |
 | `flow.foreach` | `items` (só a referência a uma lista, ex.: `{{nodes.listar.files}}`), `itemName` (fixo, padrão `item`) | `body`, `done` | Percorre a lista, um item por vez; **ligue o fim do corpo de volta à entrada**. Lista vazia vai direto a `done`. Resultados: `index`, `count` |
 
 ## Expressões `{{ }}` (ADR 0008)
