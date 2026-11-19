@@ -15,15 +15,25 @@ nada é gravado em arquivo. Mesmo assim, não digite senhas enquanto ele roda.
 import sys
 import time
 
+def _diag() -> None:
+    import platform
+    print(f"[diag] Python {sys.version.split()[0]} ({platform.architecture()[0]}) em {platform.platform()}")
+    print(f"[diag] executável: {sys.executable}")
+
 
 def main() -> int:
+    _diag()
     if sys.platform != "win32":
         print("[rec] este spike só roda no Windows.")
         return 2
     try:
         from pynput import keyboard, mouse
-    except ImportError as e:
-        print(f"[rec] FALHA de import: {e}. Rode: python -m pip install pynput")
+    except Exception as e:  # noqa: BLE001 - ImportError ou falha ao carregar o backend do Windows
+        import traceback
+
+        traceback.print_exc()
+        print(f"[rec] FALHA ao carregar o pynput: {type(e).__name__}: {e}")
+        print("[rec] Rode: python -m pip install pynput   (e confirme que está no mesmo Python mostrado em [diag])")
         return 1
     seconds = float(sys.argv[1]) if len(sys.argv) > 1 else 10.0
     events: list[tuple[float, str]] = []
@@ -41,11 +51,19 @@ def main() -> int:
         on_release=lambda key: log("tecla solta"),
     )
     print(f"[rec] capturando por {seconds:g} s — clique, role e digite algo (sem senhas)...")
-    m.start()
-    k.start()
-    time.sleep(seconds)
-    m.stop()
-    k.stop()
+    try:
+        m.start()
+        k.start()
+        time.sleep(seconds)
+    except Exception as e:  # noqa: BLE001
+        import traceback
+
+        traceback.print_exc()
+        print(f"[rec] FALHA ao capturar: {type(e).__name__}: {e}")
+        return 1
+    finally:
+        m.stop()
+        k.stop()
     print(f"[rec] OK: {len(events)} evento(s)")
     for t, kind in events[:40]:
         print(f"[rec]   {t:6.2f}s  {kind}")

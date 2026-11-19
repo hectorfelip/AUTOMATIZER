@@ -47,8 +47,14 @@ async def ocr(path: str) -> None:
         where = f" @({int(box.x)},{int(box.y)})" if box else ""
         print(f"[ocr]   {line.text}{where}")
 
+def _diag() -> None:
+    import platform
+    print(f"[diag] Python {sys.version.split()[0]} ({platform.architecture()[0]}) em {platform.platform()}")
+    print(f"[diag] executável: {sys.executable}")
+
 
 def main() -> int:
+    _diag()
     if sys.platform != "win32":
         print("[ocr] este spike só roda no Windows.")
         return 2
@@ -63,9 +69,17 @@ def main() -> int:
     try:
         asyncio.run(ocr(path))
     except ImportError as e:
-        print(f"[ocr] FALHA de import: {e}. Instale os pacotes do cabeçalho deste arquivo.")
+        import traceback
+
+        traceback.print_exc()
+        print(f"[ocr] FALHA de import: {e}")
+        print("[ocr] Os pacotes `winrt-*` podem não ter versão para o seu Python (ex.: 3.14). Confira com: python -m pip install winrt-runtime")
+        print("[ocr] Alternativa: instale o Python 3.12/3.13 num venv só para este teste (py -3.12 -m venv .venv-spike).")
         return 1
     except Exception as e:  # noqa: BLE001
+        import traceback
+
+        traceback.print_exc()
         print(f"[ocr] FALHA: {type(e).__name__}: {e}")
         return 1
     return 0
