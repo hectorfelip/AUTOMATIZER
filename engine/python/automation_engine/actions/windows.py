@@ -70,6 +70,16 @@ def open_app(ctx: ActionContext) -> dict[str, Any]:
     return {"outputs": {"pid": proc.pid, "application": exe}, "message": f"Aplicativo iniciado (PID {proc.pid})."}
 
 
+def dependency_missing(lib: str, err: ImportError) -> ActionError:
+    """Erro de dependência que diz POR QUÊ e COMO resolver (qual Python o motor está usando e o import que falhou)."""
+    return ActionError(
+        "DEPENDENCY_MISSING",
+        f"A biblioteca {lib} não pôde ser carregada ({type(err).__name__}: {str(err)[:200]}). "
+        f"Instale no Python usado pelo motor ({sys.executable}) com: python -m pip install -r engine/python/requirements-windows.txt",
+        {"library": lib, "python": sys.executable, "error": str(err)[:300]},
+    )
+
+
 @action("windows.activate_window")
 def activate_window(ctx: ActionContext) -> dict[str, Any]:
     require_windows("Ativar janela")
@@ -79,8 +89,8 @@ def activate_window(ctx: ActionContext) -> dict[str, Any]:
         raise ActionError("INVALID_CONFIG", "“Esperar até (s)” deve ser um número entre 0 e 3600.", {"timeoutSeconds": timeout})
     try:
         from pywinauto import Desktop  # type: ignore[import-not-found]
-    except ImportError:
-        raise ActionError("DEPENDENCY_MISSING", "A biblioteca pywinauto não está disponível neste motor.") from None
+    except ImportError as e:
+        raise dependency_missing("pywinauto", e) from None
 
     needle = title.lower()
     deadline = time.monotonic() + float(timeout)

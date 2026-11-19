@@ -78,6 +78,18 @@ def files_section() -> None:
 
 def windows_section(title: str, visual: bool) -> None:
     print("\n--- Janelas, teclado e mouse (Windows) ---")
+    if sys.platform == "win32":
+        # antes de tudo: o Python que está rodando ESTE script tem as bibliotecas? (o erro mais comum é usar o Python do sistema)
+        missing = []
+        for lib in ("pywinauto", "pyautogui"):
+            try:
+                __import__(lib)
+            except Exception as e:  # noqa: BLE001
+                missing.append(f"{lib} ({type(e).__name__}: {str(e)[:120]})")
+        if missing:
+            print(f"[actions] ATENÇÃO Python em uso: {sys.executable}")
+            print(f"[actions] ATENÇÃO não importa: {', '.join(missing)}")
+            print("[actions] Instale e rode de novo:  python -m pip install -r engine\\python\\requirements-windows.txt")
     if sys.platform != "win32":
         print("[actions] --    não se aplica fora do Windows")
         return

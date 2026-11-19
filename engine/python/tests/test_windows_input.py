@@ -341,3 +341,15 @@ class TestClick:
         monkeypatch.setattr("builtins.__import__", fake_import)
         e = err("input.click", {"x": 1, "y": 1})
         assert e.code == "DEPENDENCY_UNAVAILABLE" and "sem display" in e.message
+
+
+def test_dependency_missing_diz_qual_biblioteca_qual_python_e_como_instalar():
+    import sys
+
+    from automation_engine.actions.windows import dependency_missing
+
+    e = dependency_missing("pywinauto", ModuleNotFoundError("No module named 'pywinauto'"))
+    assert e.code == "DEPENDENCY_MISSING"
+    assert "pywinauto" in e.message and "ModuleNotFoundError" in e.message and sys.executable in e.message
+    assert "requirements-windows.txt" in e.message
+    assert e.details["python"] == sys.executable

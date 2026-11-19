@@ -5,7 +5,7 @@ from typing import Any
 
 from ..runtime.context import ActionContext, ActionError
 from ..runtime.registry import action
-from .windows import require_windows
+from .windows import dependency_missing, require_windows
 
 MAX_TYPED = 5000
 _SEND_KEYS_SPECIAL = {"{": "{{}", "}": "{}}", "+": "{+}", "^": "{^}", "%": "{%}", "~": "{~}", "(": "{(}", ")": "{)}"}
@@ -40,8 +40,8 @@ def parse_hotkey(text: str) -> list[str]:
 def _pyautogui() -> Any:
     try:
         import pyautogui  # type: ignore[import-not-found]
-    except ImportError:
-        raise ActionError("DEPENDENCY_MISSING", "A biblioteca pyautogui não está disponível neste motor.") from None
+    except ImportError as e:
+        raise dependency_missing("pyautogui", e) from None
     except Exception as e:  # noqa: BLE001 - ex.: sessão sem tela
         raise ActionError("DEPENDENCY_UNAVAILABLE", f"Não foi possível usar o teclado/mouse neste ambiente: {e}") from None
     pyautogui.FAILSAFE = True  # mouse no canto da tela = parada de emergência
@@ -65,8 +65,8 @@ def type_text(ctx: ActionContext) -> dict[str, Any]:
     require_windows("Digitar texto")
     try:
         from pywinauto.keyboard import send_keys  # type: ignore[import-not-found]
-    except ImportError:
-        raise ActionError("DEPENDENCY_MISSING", "A biblioteca pywinauto não está disponível neste motor.") from None
+    except ImportError as e:
+        raise dependency_missing("pywinauto", e) from None
     for i in range(0, len(text), 40):  # em blocos, para o cancelamento poder interromper no meio
         ctx.check_cancelled()
         send_keys(escape_send_keys(text[i : i + 40]), with_spaces=True, with_tabs=True, with_newlines=True, pause=0.01)
