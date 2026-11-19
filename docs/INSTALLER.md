@@ -31,7 +31,7 @@ Sem certificado o instalador sai **não assinado** (SmartScreen mostrará "edito
 - Memória em repouso (app empacotado, Linux/xvfb): **~493 MB** de working set somando os processos do Electron (Browser 164, GPU 137 — render de software do xvfb, Tab 114, Utility 78), **fora** do processo Python do motor. **Não otimizado; não medido no Windows nem durante execuções longas.**
 
 ## O que NÃO foi verificado (precisa do Windows)
-Build do instalador NSIS; instalar em Windows limpo; atalhos; desinstalar (e que os dados ficam); atualizar por cima sem corromper o banco real; o motor congelado **do Windows** iniciado pelo app instalado; SmartScreen/antivírus; DPI e múltiplas resoluções; apps elevados; agendador e `process.execPath` do app instalado; o motor congelado agora inclui playwright/pynput/OCR (~245 MB em Linux, ver `engine-packaging.md`; **pynput e winrt congelados ainda não verificados no Windows**) — conferir `verify-engine.py` e o tamanho do instalador.
+Build do instalador NSIS; instalar em Windows limpo; atalhos; desinstalar (e que os dados ficam); atualizar por cima sem corromper o banco real; o motor congelado **do Windows** iniciado pelo app instalado; SmartScreen/antivírus; DPI e múltiplas resoluções; apps elevados; agendador e `process.execPath` do app instalado; o motor congelado agora inclui playwright/pynput/OCR (~245 MB em Linux, ver `engine-packaging.md`; `verify-engine.py` já passou no Windows com pynput/winrt congelados) — conferir `verify-engine.py` e o tamanho do instalador.
 
 ## Roteiro de teste no Windows limpo
 1. Gerar o instalador (acima) e instalá-lo numa máquina/VM **sem Python**.
