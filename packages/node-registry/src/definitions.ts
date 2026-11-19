@@ -418,6 +418,35 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
       { key: "regionHeight", label: "Região: altura", kind: "number", default: 0, min: 0, max: 100_000 },
     ],
   },
+  {
+    type: "vision.find_image",
+    version: 1,
+    results: [
+      r("centerX", "Centro X (pixels)", "number"),
+      r("centerY", "Centro Y (pixels)", "number"),
+      r("x", "Canto esquerdo", "number"),
+      r("y", "Topo", "number"),
+      r("width", "Largura", "number"),
+      r("height", "Altura", "number"),
+      r("similarity", "Similaridade (0–1)", "number"),
+      r("attempts", "Tentativas", "number"),
+    ],
+    label: "Localizar imagem na tela",
+    category: "vision",
+    description:
+      "Procura na tela uma imagem de referência (recorte PNG/JPG/BMP), esperando ela aparecer, e devolve a posição (use em “Clique”: {{nodes.<id>.centerX}}, {{nodes.<id>.centerY}}). Só funciona no Windows. A imagem precisa estar na mesma escala (zoom/DPI) e tema do recorte. Prefira janela/elemento/texto quando existirem.",
+    inputs: IN,
+    outputs: OK_ERR,
+    fields: [
+      path("imagePath", "Imagem de referência", { placeholder: "C:\\Pasta\\botao.png", help: "Recorte da tela, 8 a 800 px por lado, até 5 MB. Precisa ter detalhes (não pode ser uma cor lisa)." }),
+      { key: "similarity", label: "Similaridade mínima (0,5–1)", kind: "number", default: 0.9, min: 0.5, max: 1, help: "1 = pixels idênticos. Abaixe um pouco para tolerar suavização de fontes e compressão." },
+      { key: "timeoutSeconds", label: "Esperar até (s)", kind: "number", default: 10, min: 0, max: 3600 },
+      { key: "regionX", label: "Região: X (opcional)", kind: "number", default: 0, min: 0, max: 100_000, help: "Limitar a busca a uma região deixa a busca bem mais rápida e evita falsos positivos. Tudo 0 = tela inteira." },
+      { key: "regionY", label: "Região: Y", kind: "number", default: 0, min: 0, max: 100_000 },
+      { key: "regionWidth", label: "Região: largura", kind: "number", default: 0, min: 0, max: 100_000 },
+      { key: "regionHeight", label: "Região: altura", kind: "number", default: 0, min: 0, max: 100_000 },
+    ],
+  },
   // ---- Navegador (Playwright; seletores, nunca coordenadas) ----
   {
     type: "web.navigate",

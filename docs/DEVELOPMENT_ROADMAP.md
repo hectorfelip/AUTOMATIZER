@@ -195,15 +195,15 @@ Só inicia após a Fase 6a aceita; não bloqueia o MVP.
 
 ### Tarefas
 - [x] Prototipar OCR. *(spike no Windows do Hector: pt-BR, 0,42 s, 385 palavras — ADR 0015)*
-- [x] Implementar localizar texto na tela. *(`vision.find_text`; lógica testada em Linux com backend falso; **a ação real ainda não foi rodada no Windows**: `scripts/verify-vision.py`)*
-- [ ] Implementar localizar imagem de referência.
-- [x] Implementar espera por elemento visual. *(`vision.find_text` espera o texto aparecer, com timeout; imagem de referência não)*
+- [x] Implementar localizar texto na tela. *(`vision.find_text`; **validada no Windows** pelo Hector: "Lixeira" achada, similaridade 0,933, 1,05 s)*
+- [x] Implementar localizar imagem de referência. *(`vision.find_image`, Pillow puro — decisão do Hector; testada em Linux com tela falsa; **falta rodar no Windows**: `python scripts\verify-vision.py --image caminho.png`)*
+- [x] Implementar espera por elemento visual. *(`vision.find_text` e `vision.find_image` esperam aparecer, com timeout)*
 - [x] Definir API de plugins de ações. *(declarativa, sem código — ADR 0014 opção A; opção B não feita)*
 - [x] Documentar criação de novos nós. *(`docs/PLUGINS.md`)*
 - [x] Criar subfluxos reutilizáveis. *(ADR 0013)*
 - [x] Criar biblioteca de templates. *(7 exemplos embutidos; "formato final do pacote" segue aberto — ARCHITECTURE §15)*
 
-> **Pendentes:** localizar **imagem** de referência (decidir OpenCV/Pillow) e validar `vision.find_text` no Windows (`scripts/verify-vision.py`). Critério "ações visuais com timeout e limiar configuráveis": **atendido para texto** (timeout + similaridade), **não para imagem**. "Plugins validados e carregados de forma controlada": **atendido** para plugins declarativos.
+> **Pendentes:** validar `vision.find_image` no Windows (`scripts/verify-vision.py --image`); `vision.find_text` e UIA **validados no Windows** (Hector, `verify-vision.py "Lixeira"` → similaridade 0,933 em 1,05 s). Critério "ações visuais com timeout e limiar configuráveis": **atendido** para texto e imagem (imagem só testada em Linux). "Plugins validados e carregados de forma controlada": **atendido** para plugins declarativos.
 
 ### Critérios de aceite
 - Ações visuais têm timeout e limiar de confiança configuráveis.

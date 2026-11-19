@@ -9,7 +9,7 @@ Estado em Linux: Fases 0–6b, 7 (web), 8 (subfluxos) e 9 (empacotamento parcial
 | Tema | Documento | Recomendação |
 |---|---|---|
 | Plugins **com código** (opção B do [ADR 0014](adr/0014-plugins-de-acoes-proposta.md)) | mesmo ADR | A opção A está aprovada e implementada. A B **não** foi aprovada e só com os requisitos de segurança do ADR |
-| OCR / reconhecimento visual | [ADR 0015](adr/0015-ocr-e-reconhecimento-visual-proposta.md) | ✅ spike validado; `vision.find_text` implementado. **Rode `python scripts\verify-vision.py "texto visível"` no Windows.** Falta decidir *localizar imagem* (OpenCV ~60 MB vs Pillow) |
+| OCR / reconhecimento visual | [ADR 0015](adr/0015-ocr-e-reconhecimento-visual-proposta.md) | ✅ spike validado; `vision.find_text` implementado. **Rode `python scripts\verify-vision.py "texto visível"` no Windows.** **Decidido: Pillow** (sem OpenCV). `vision.find_image` implementado; falta rodar `python scripts\verify-vision.py --image C:\caminho\recorte.png` no Windows |
 | **Gravador** (Fase 7) | [ADR 0016](adr/0016-gravador-proposta.md) | ✅ implementado (spike validado). **Valide no Windows:** `pip install -r engine\python\requirements-recorder.txt` e `npm run dev` → Gravador (faixa vermelha, minimizar/restaurar, Ctrl+Alt+R/P/S). O nó `windows.click_element` (UIA) existe; o gravador ainda gera cliques por coordenada (detectar o elemento sob o clique é trabalho futuro). **Valide:** `python scripts\verify-uia.py` |
 
 ## 3. Validar no Windows (nada disto roda no Linux)

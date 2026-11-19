@@ -4,9 +4,10 @@
 Linux verificado; **ações de arquivo, abrir app, janela, teclado e mouse validadas no Windows** (`verify-actions.py`). Demais itens de Windows pendentes, marcados em `docs/reviews/`.
 
 ### Adicionado
-- **Clicar em elemento (UIA):** `windows.click_element` clica em botão/menu/campo pelo nome ou AutomationId (pywinauto), esperando aparecer; preferível a coordenadas. Só Windows; **não verificado no Windows** (`scripts/verify-uia.py`).
+- **Localizar imagem na tela:** `vision.find_image` procura um recorte (PNG/JPG/BMP) na tela, esperando aparecer, só com Pillow (sem OpenCV/numpy); exige mesma escala/DPI do recorte. Testado em Linux com tela falsa; **falta rodar no Windows** (`scripts\verify-vision.py --image`).
+- **Clicar em elemento (UIA):** `windows.click_element` clica em botão/menu/campo pelo nome ou AutomationId (pywinauto), esperando aparecer; preferível a coordenadas. **Validado no Windows** (`verify-uia.py`: menu Arquivo do Bloco de Notas clicado em 1,22 s).
 - **Fase 7 (gravador):** grava mouse e teclado (processo separado, `pynput`), faixa de gravação sempre visível, pausa/parada por atalhos globais, **modo senha** (o caractere nunca sai do processo), revisão editável antes de virar fluxo; só Windows (ADR 0016). Captura real, faixa e atalhos **não verificados no Windows**.
-- **Fase 8 (OCR):** nó "Localizar texto na tela" (Windows.Media.Ocr, similaridade e timeout configuráveis, região opcional; ADR 0015). Spike validado no Windows; **a ação real ainda não foi rodada lá**. Localizar imagem não existe.
+- **Fase 8 (OCR):** nó "Localizar texto na tela" (Windows.Media.Ocr, similaridade e timeout configuráveis, região opcional; ADR 0015). **Validado no Windows** (`verify-vision.py "Lixeira"`: similaridade 0,933 em 1,05 s).
 - **Fase 8 (plugins):** plugins **declarativos** (nós novos por composição de nós embutidos, sem código), instalação manual com resumo, ativar/desativar/remover (ADR 0014 opção A, `docs/PLUGINS.md`). Plugins com código **não** existem.
 - **Fase 9 (parcial):** configuração do instalador NSIS (electron-builder), motor congelado em `resources/engine`, política de dados preservados, recusa de banco de versão futura, teste de atualização com dados reais (`docs/INSTALLER.md`). **Instalador não gerado/testado no Windows.**
 - **Fase 8 (parcial):** nó "Chamar fluxo" (subfluxos com parâmetros e retorno pelas variáveis do fluxo chamado, sem mudar o schema), exemplo web na biblioteca de templates (ADR 0013). OCR, reconhecimento visual e plugins **não** implementados.
