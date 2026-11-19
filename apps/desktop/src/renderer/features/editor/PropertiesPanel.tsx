@@ -1,5 +1,6 @@
 import { getNodeDefinition } from "@automation-studio/node-registry";
-import { useState } from "react";
+import { availableReferences } from "@automation-studio/workflow-validator";
+import { useMemo, useState } from "react";
 import { Button } from "../../components/ui/Button";
 import { Dialog } from "../../components/ui/Dialog";
 import { currentDoc, issuesOf, useEditor } from "../../stores/editor";
@@ -11,6 +12,8 @@ export function PropertiesPanel() {
   const [confirmOverwrite, setConfirmOverwrite] = useState<string | null>(null); // id do nó aguardando confirmação
   const selected = useEditor((s) => s.selectedNodes).filter((id) => doc.nodes.some((n) => n.id === id));
   const issues = issuesOf(doc);
+  const selectedKey = selected.join(","); // `selected` é um array novo a cada render; a chave estável é que memoiza
+  const refs = useMemo(() => (selected.length === 1 ? availableReferences(doc, selected[0]!) : undefined), [doc, selectedKey]);
 
   const duplicate = () => {
     const { doc: next, newIds } = duplicateNodes(doc, selected);
@@ -79,6 +82,7 @@ export function PropertiesPanel() {
           key={`${node.id}:${f.key}`}
           field={f}
           value={node.config[f.key]}
+          refs={refs}
           error={mine.find((i) => i.field === f.key)?.message.replace(`${def.label}: `, "")}
           onChange={(v) => {
             // Sobrescrever apaga o que já existe no destino: ligar exige confirmação (desligar, não).

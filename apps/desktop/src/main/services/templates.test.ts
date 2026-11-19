@@ -8,7 +8,7 @@ import { createWorkflowService } from "./workflows.js";
 
 describe("exemplos prontos", () => {
   it("há exemplos e os ids são únicos", () => {
-    expect(templates.length).toBeGreaterThanOrEqual(4);
+    expect(templates.length).toBeGreaterThanOrEqual(6);
     expect(new Set(templates.map((t) => t.id)).size).toBe(templates.length);
   });
 
@@ -22,7 +22,7 @@ describe("exemplos prontos", () => {
 
   it("cobrem arquivos, decisão, repetição e janela/teclado", () => {
     const types = new Set(templates.flatMap((t) => t.workflow.nodes.map((n) => n.type)));
-    for (const needed of ["files.move", "files.exists", "files.create_folder", "flow.repeat", "windows.open_app", "windows.activate_window", "input.type_text"]) {
+    for (const needed of ["files.move", "files.exists", "files.create_folder", "flow.repeat", "flow.foreach", "windows.open_app", "windows.activate_window", "input.type_text"]) {
       expect(types.has(needed), needed).toBe(true);
     }
   });

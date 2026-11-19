@@ -163,3 +163,22 @@ export async function seedFlow(
     { name, flow },
   );
 }
+
+/**
+ * Os exemplos usam separador do Windows (`\`). Fora do Windows, troca por `/` nas configs (via API, como
+ * se o usuário tivesse editado), para o teste rodar com pastas temporárias reais.
+ */
+export async function localizeSeparators(page: Page, name: string): Promise<void> {
+  if (process.platform === "win32") return;
+  await page.evaluate(async (name) => {
+    const list = await window.api.automations.list();
+    if (!list.ok) throw new Error("list");
+    const automationId = list.data.find((a) => a.name === name)!.id;
+    const loaded = await window.api.workflows.load({ automationId });
+    if (!loaded.ok) throw new Error(loaded.error.message);
+    const document = loaded.data.document;
+    for (const n of document.nodes) for (const [k, v] of Object.entries(n.config)) if (typeof v === "string") n.config[k] = v.replaceAll("\\", "/");
+    const res = await window.api.workflows.save({ automationId, document });
+    if (!res.ok) throw new Error(res.error.message);
+  }, name);
+}

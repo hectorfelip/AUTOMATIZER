@@ -112,6 +112,7 @@ Desenvolver em entregas verticais. Cada fase deve terminar com algo executável 
 - [ ] Implementar digitar texto. *(implementado e testado com dublês; falta validar no Windows: `scripts/verify-actions.py`)*
 - [ ] Implementar clique e teclas. *(implementado e testado com dublês; falta validar no Windows: `scripts/verify-actions.py`)*
 - [x] Implementar resultado estruturado por ação.
+- [x] Implementar “Para cada item” e resultado dos nós nas expressões *(acrescentado por decisão do Hector; ADR 0008)*.
 - [x] Criar exemplos prontos.
 
 ### Critérios de aceite

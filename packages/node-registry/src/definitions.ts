@@ -1,4 +1,4 @@
-import type { CategoryId, ConfigField, NodeDefinition, Port } from "./types.js";
+import type { CategoryId, ConfigField, NodeDefinition, Port, ResultDef } from "./types.js";
 
 export const CATEGORIES: { id: CategoryId; label: string }[] = [
   { id: "control", label: "Controle" },
@@ -18,6 +18,11 @@ const YES_NO: Port[] = [
   { id: "true", label: "Verdadeiro" },
   { id: "false", label: "Falso" },
 ];
+
+/** Propriedades de cada arquivo devolvido por `files.list` (`{{item.name}}`, `{{item.path}}`...). */
+export const FILE_ITEM_PROPS = ["name", "stem", "extension", "path", "folder", "size", "modifiedAt"];
+
+const r = (key: string, label: string, type: ResultDef["type"], itemProps?: string[]): ResultDef => ({ key, label, type, ...(itemProps ? { itemProps } : {}) });
 
 const path = (key: string, label: string, extra: Partial<ConfigField> = {}): ConfigField => ({
   key,
@@ -58,6 +63,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
   {
     type: "flow.wait",
     version: 1,
+    results: [r("waitedSeconds", "Segundos aguardados", "number")],
     label: "Esperar",
     category: "control",
     description: "Aguarda uma duração antes de continuar.",
@@ -68,6 +74,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
   {
     type: "flow.condition",
     version: 1,
+    results: [r("result", "Resultado da comparação", "boolean")],
     label: "Se / Senão",
     category: "control",
     description: "Segue por um caminho ou outro conforme a comparação.",
@@ -95,6 +102,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
   {
     type: "flow.repeat",
     version: 1,
+    results: [r("iteration", "Volta atual", "number")],
     label: "Repetir N vezes",
     category: "control",
     description: "Executa o caminho “Corpo” N vezes. Ligue o fim do corpo de volta à entrada deste nó para repetir; ao terminar as repetições, o fluxo segue por “Depois”.",
@@ -104,6 +112,33 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
       { id: "done", label: "Depois" },
     ],
     fields: [{ key: "times", label: "Vezes", kind: "number", required: true, default: 3, min: 1, max: 100_000 }],
+  },
+  {
+    type: "flow.foreach",
+    version: 1,
+    results: [r("index", "Posição atual (1, 2, 3…)", "number"), r("count", "Total de itens", "number")],
+    label: "Para cada item",
+    category: "control",
+    description: "Percorre uma lista, um item por vez (ex.: os arquivos de “Listar arquivos”). No corpo, use {{item}} ou {{item.name}}. Ligue o fim do corpo de volta à entrada deste nó; ao acabar a lista, o fluxo segue por “Depois”.",
+    inputs: IN,
+    outputs: [
+      { id: "body", label: "Para cada" },
+      { id: "done", label: "Depois" },
+    ],
+    fields: [
+      { key: "items", label: "Lista", kind: "list", required: true, placeholder: "{{nodes.listar.files}}", help: "Use “Inserir…” para escolher o resultado de um nó anterior (ex.: Arquivos de “Listar arquivos”)." },
+      {
+        key: "itemName",
+        label: "Nome do item",
+        kind: "text",
+        required: true,
+        default: "item",
+        literal: true,
+        pattern: "^(?!variables$|nodes$)[A-Za-z_][A-Za-z0-9_]{0,63}$",
+        patternMessage: "Use letras, números e _ (começando por letra ou _); “variables” e “nodes” são reservados.",
+        help: "Como o item é chamado no corpo: {{item.name}}. Use nomes diferentes em laços aninhados.",
+      },
+    ],
   },
   // ---- Dados ----
   {
@@ -131,6 +166,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
   {
     type: "files.list",
     version: 1,
+    results: [r("count", "Quantidade de arquivos", "number"), r("files", "Arquivos", "list", FILE_ITEM_PROPS), r("folder", "Pasta", "string"), r("truncated", "Lista foi truncada", "boolean")],
     label: "Listar arquivos",
     category: "files",
     description: "Lista os arquivos de uma pasta.",
@@ -145,6 +181,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
   {
     type: "files.exists",
     version: 1,
+    results: [r("exists", "Existe", "boolean"), r("kind", "Tipo (file/folder)", "string"), r("path", "Caminho", "string")],
     label: "Verificar existência",
     category: "files",
     description: "Verifica se um arquivo ou pasta existe.",
@@ -158,6 +195,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
   {
     type: "files.create_folder",
     version: 1,
+    results: [r("path", "Caminho", "string"), r("created", "Foi criada agora", "boolean")],
     label: "Criar pasta",
     category: "files",
     description: "Cria uma pasta (e as intermediárias).",
@@ -168,6 +206,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
   {
     type: "files.copy",
     version: 1,
+    results: [r("count", "Quantidade copiada", "number"), r("overwritten", "Quantidade substituída", "number")],
     label: "Copiar arquivo",
     category: "files",
     description: "Copia um arquivo para outro local.",
@@ -182,6 +221,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
   {
     type: "files.move",
     version: 1,
+    results: [r("count", "Quantidade movida", "number"), r("overwritten", "Quantidade substituída", "number")],
     label: "Mover arquivo",
     category: "files",
     description: "Move um arquivo para outro local.",
@@ -196,6 +236,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
   {
     type: "files.rename",
     version: 1,
+    results: [r("path", "Novo caminho", "string"), r("oldPath", "Caminho anterior", "string")],
     label: "Renomear arquivo",
     category: "files",
     description: "Renomeia um arquivo ou pasta.",
@@ -207,6 +248,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
   {
     type: "windows.open_app",
     version: 1,
+    results: [r("pid", "PID do processo", "number"), r("application", "Caminho do aplicativo", "string")],
     label: "Abrir aplicativo",
     category: "windows",
     description: "Inicia um aplicativo.",
@@ -220,6 +262,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
   {
     type: "windows.activate_window",
     version: 1,
+    results: [r("title", "Título da janela", "string"), r("handle", "Handle da janela", "number"), r("pid", "PID do processo", "number")],
     label: "Ativar janela",
     category: "windows",
     description: "Localiza uma janela pelo título e a traz para frente.",
@@ -234,6 +277,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
   {
     type: "input.type_text",
     version: 1,
+    results: [r("length", "Caracteres digitados", "number")],
     label: "Digitar texto",
     category: "input",
     description: "Digita um texto na janela ativa.",
@@ -254,6 +298,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
   {
     type: "input.click",
     version: 1,
+    results: [r("x", "X", "number"), r("y", "Y", "number")],
     label: "Clique",
     category: "input",
     description: "Clica em uma posição da tela (último recurso: frágil com DPI/resolução).",

@@ -11,7 +11,7 @@ import type { WorkflowDocument, WorkflowNode } from "@automation-studio/workflow
 import { hasErrors, validateWorkflow } from "@automation-studio/workflow-validator";
 import { VARIABLE_NAME_PATTERN } from "@automation-studio/workflow-schema";
 import { coerceToDeclared, evaluateCondition, OPERATOR_LABELS } from "./control.js";
-import { initialVariables, resolveConfig } from "./resolve.js";
+import { createContext, resolveConfig, resolveItems } from "./resolve.js";
 
 export interface ActionExecutor {
   /** Executa uma ação. Deve resolver (nunca rejeitar) e respeitar `signal` para cancelar. */
@@ -79,7 +79,8 @@ export async function runWorkflow(doc: WorkflowDocument, opts: RunOptions): Prom
   // ---- 3. contexto isolado ----
   const nodes = new Map<string, WorkflowNode>(doc.nodes.map((n) => [n.id, n]));
   const next = new Map<string, string>(doc.edges.map((e) => [`${e.source}:${e.sourceHandle}`, e.target]));
-  const variables = initialVariables(doc);
+  const ctx = createContext(doc);
+  const variables = ctx.variables; // atalho: Definir variável altera o contexto desta execução
   const maxSteps = opts.maxSteps ?? DEFAULT_MAX_STEPS;
   const repeatCounters = new Map<string, number>(); // voltas já dadas por nó "Repetir" (isolado por execução)
 
@@ -88,7 +89,7 @@ export async function runWorkflow(doc: WorkflowDocument, opts: RunOptions): Prom
   const setVariable = (node: WorkflowNode): ActionOutcome => {
     const name = node.config["name"];
     if (typeof name !== "string" || !VARIABLE_NAME_PATTERN.test(name)) return invalid("O nome da variável é inválido.");
-    const resolved = resolveConfig({ value: node.config["value"] ?? "" }, variables); // sem tipo: a referência pura mantém o tipo original
+    const resolved = resolveConfig({ value: node.config["value"] ?? "" }, ctx); // sem tipo: a referência pura mantém o tipo original
     if (!resolved.ok) return invalid(resolved.message);
     const raw = resolved.config["value"];
     const coerced = coerceToDeclared(name, raw === null ? "" : raw!, doc.variables[name]?.type);
@@ -98,7 +99,7 @@ export async function runWorkflow(doc: WorkflowDocument, opts: RunOptions): Prom
   };
 
   const evaluate = (node: WorkflowNode): ActionOutcome => {
-    const resolved = resolveConfig(node.config, variables, { left: "text", right: "text" });
+    const resolved = resolveConfig(node.config, ctx, { left: "text", right: "text" });
     if (!resolved.ok) return invalid(resolved.message);
     const left = String(resolved.config["left"] ?? "");
     const right = String(resolved.config["right"] ?? "");
@@ -109,7 +110,7 @@ export async function runWorkflow(doc: WorkflowDocument, opts: RunOptions): Prom
   };
 
   const repeat = (node: WorkflowNode): ActionOutcome => {
-    const resolved = resolveConfig({ times: node.config["times"] ?? null }, variables, { times: "number" });
+    const resolved = resolveConfig({ times: node.config["times"] ?? null }, ctx, { times: "number" });
     if (!resolved.ok) return invalid(resolved.message);
     const times = resolved.config["times"];
     if (typeof times !== "number" || !Number.isInteger(times) || times < 1 || times > 100_000) {
@@ -122,6 +123,36 @@ export async function runWorkflow(doc: WorkflowDocument, opts: RunOptions): Prom
     }
     repeatCounters.delete(node.id); // pronto para uma próxima passagem (ex.: laço dentro de outro laço)
     return { kind: "completed", outputs: { iterations: times }, next: "done", message: `${times} repetição(ões) concluída(s).` };
+  };
+
+  /** Lista, posição e nome do item de cada "Para cada item" em andamento. */
+  const foreachState = new Map<string, { items: unknown[]; next: number }>();
+  const dropScope = (nodeId: string) => {
+    const i = ctx.loops.findIndex((l) => l.nodeId === nodeId);
+    if (i >= 0) ctx.loops.splice(i, 1);
+  };
+
+  const foreach = (node: WorkflowNode): ActionOutcome => {
+    let state = foreachState.get(node.id);
+    if (!state) {
+      const resolved = resolveItems(node.config["items"], ctx); // a lista é lida UMA vez, na primeira passagem
+      if (!resolved.ok) return invalid(resolved.message);
+      state = { items: resolved.items, next: 0 };
+      foreachState.set(node.id, state);
+    }
+    const count = state.items.length;
+    if (state.next >= count) {
+      foreachState.delete(node.id);
+      dropScope(node.id);
+      return { kind: "completed", outputs: { count }, next: "done", message: count === 0 ? "A lista está vazia; nada a repetir." : `${count} item(ns) processado(s).` };
+    }
+    const index = ++state.next; // posição 1-based
+    const name = typeof node.config["itemName"] === "string" && node.config["itemName"] ? node.config["itemName"] : "item";
+    const scope = { nodeId: node.id, name, item: state.items[index - 1], index, count };
+    const at = ctx.loops.findIndex((l) => l.nodeId === node.id);
+    if (at >= 0) ctx.loops[at] = scope; // próxima volta: troca o item, mantendo a ordem de aninhamento
+    else ctx.loops.push(scope);
+    return { kind: "completed", outputs: { index, count }, next: "body", message: `Item ${index} de ${count}.` };
   };
 
   let current: string | undefined = doc.nodes.find((n) => n.type === "trigger.manual")!.id;
@@ -149,8 +180,10 @@ export async function runWorkflow(doc: WorkflowDocument, opts: RunOptions): Prom
       outcome = evaluate(node);
     } else if (node.type === "flow.repeat") {
       outcome = repeat(node);
+    } else if (node.type === "flow.foreach") {
+      outcome = foreach(node);
     } else {
-      const resolved = resolveConfig(node.config, variables, Object.fromEntries(def.fields.map((f) => [f.key, f.kind])));
+      const resolved = resolveConfig(node.config, ctx, Object.fromEntries(def.fields.map((f) => [f.key, f.kind])));
       if (!resolved.ok) {
         outcome = { kind: "failed", error: { code: "INVALID_CONFIG", message: resolved.message } };
       } else {
@@ -174,6 +207,7 @@ export async function runWorkflow(doc: WorkflowDocument, opts: RunOptions): Prom
 
     const outs: string[] = def.outputs.map((o) => o.id);
     if (outcome.kind === "completed") {
+      ctx.nodes.set(node.id, outcome.outputs); // disponível para os nós seguintes: {{nodes.<id>.<resultado>}}
       const port: string | null = outcome.next ?? (outs.includes("success") ? "success" : outs.includes("next") ? "next" : null);
       if (port !== null && !outs.includes(port)) {
         const error = { code: "INVALID_ACTION_RESULT", message: `${def.label}: a ação indicou uma saída inexistente (“${port}”).` };

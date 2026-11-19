@@ -55,11 +55,14 @@ def list_files(ctx: ActionContext) -> dict[str, Any]:
                         size, modified = st.st_size, datetime.fromtimestamp(st.st_mtime).isoformat(timespec="seconds")
                     except OSError:
                         size, modified = None, None
-                    entries.append({"name": name, "path": full, "extension": os.path.splitext(name)[1].lstrip(".").lower(), "size": size, "modifiedAt": modified})
+                    stem, ext = os.path.splitext(name)
+                    entries.append({"name": name, "stem": stem, "extension": ext.lstrip(".").lower(), "path": full, "folder": root, "size": size, "modifiedAt": modified})
     except OSError as e:
         raise os_error(e, folder) from None
 
     note = f" ({skipped} subpasta(s) sem permissão foram ignoradas)" if skipped else ""
+    if total > len(entries):  # nunca deixar um resultado incompleto parecer completo
+        note += f" ATENÇÃO: a lista mostra só os primeiros {len(entries)}; os outros {total - len(entries)} ficaram de fora. Rode de novo para processá-los."
     return {
         "outputs": {"folder": folder, "pattern": pattern, "count": total, "files": entries, "truncated": total > len(entries), "skipped": skipped},
         "message": f"{total} arquivo(s) em “{folder}”{note}.",

@@ -10,14 +10,34 @@ Todas as ações recebem a config já com `{{variables.x}}` resolvido e devolvem
 | `flow.end` | `message` | — | Encerra o fluxo como concluído |
 | `data.set_variable` | `name` (fixo), `value` | `next` | Converte ao tipo declarado da variável; `INVALID_CONFIG` se não der (ex.: "abc" em número) |
 | `flow.condition` | `left`, `operator`, `right` | `true`, `false` | Números comparam como número (`"10" > "9"`); `maior/menor` com texto = `INVALID_CONFIG` |
-| `flow.repeat` | `times` (1–100000) | `body`, `done` | **Ligue o fim do corpo de volta à entrada do nó.** Sem a volta, o fluxo termina após uma passagem |
+| `flow.repeat` | `times` (1–100000, aceita `{{nodes.x.count}}`) | `body`, `done` | **Ligue o fim do corpo de volta à entrada do nó.** Sem a volta, o fluxo termina após uma passagem |
+| `flow.foreach` | `items` (só a referência a uma lista, ex.: `{{nodes.listar.files}}`), `itemName` (fixo, padrão `item`) | `body`, `done` | Percorre a lista, um item por vez; **ligue o fim do corpo de volta à entrada**. Lista vazia vai direto a `done`. Resultados: `index`, `count` |
+
+## Expressões `{{ }}` (ADR 0008)
+
+Só três formas, nada é avaliado (sem `eval`):
+
+| Forma | Exemplo | O que é |
+|---|---|---|
+| `{{variables.nome}}` | `{{variables.destino}}` | Variável do fluxo |
+| `{{nodes.<id>.<resultado>[.caminho]}}` | `{{nodes.listar.count}}`, `{{nodes.listar.files.0.name}}` | Resultado de um nó que já rodou (use "Inserir…" no painel) |
+| `{{<item>[.propriedade]}}` | `{{item.path}}`, `{{item.extension}}` | Item atual de um "Para cada item" (só dentro do corpo do laço) |
+
+- Referência "pura" (o campo é só ela) mantém o tipo: `{{nodes.listar.count}}` é número em "Repetir"; em campo de texto vira texto.
+- Uma lista inteira só cabe no campo "Lista" do "Para cada item"; em texto use uma posição (`…files.0.name`) ou percorra com o laço. Um objeto inteiro também não cabe: use uma propriedade.
+- O validador avisa (antes de executar) nó/resultado/propriedade inexistente e `{{item}}` fora do laço. Usar o resultado de um nó que pode não ter rodado antes é aviso; em execução vira erro claro.
+- Caminhos aceitam só nomes e posições (`.0`). `__proto__`, `constructor` e `prototype` são recusados; só propriedades próprias são lidas.
+
+## Resultados por nó (`{{nodes.<id>.<resultado>}}`)
+
+`flow.wait`: `waitedSeconds` · `flow.condition`: `result` · `flow.repeat`: `iteration` · `flow.foreach`: `index`, `count` · `files.list`: `count`, `files`, `folder`, `truncated` · `files.exists`: `exists`, `kind`, `path` · `files.create_folder`: `path`, `created` · `files.copy`/`files.move`: `count`, `overwritten` · `files.rename`: `path`, `oldPath` · `windows.open_app`: `pid`, `application` · `windows.activate_window`: `title`, `handle`, `pid` · `input.type_text`: `length` · `input.click`: `x`, `y`.
 
 ## Motor Python
 
 | Ação | Plataforma | Config | `outputs` | Portas | Erros |
 |---|---|---|---|---|---|
 | `flow.wait` | todas | `seconds` (0–86400) | `waitedSeconds` | `next` | `INVALID_CONFIG` |
-| `files.list` | todas | `path`, `pattern` (`*` `?`), `recursive` | `folder, count, files[{name,path,extension,size,modifiedAt}], truncated, skipped` | `success`, `error` | `PATH_NOT_FOUND`, `NOT_A_DIRECTORY`, `PERMISSION_DENIED` |
+| `files.list` | todas | `path`, `pattern` (`*` `?`), `recursive` | `folder, count, files[{name,stem,extension,path,folder,size,modifiedAt}], truncated, skipped` | `success`, `error` | `PATH_NOT_FOUND`, `NOT_A_DIRECTORY`, `PERMISSION_DENIED` |
 | `files.exists` | todas | `path` | `path, exists, kind` | `true`, `false` | `INVALID_CONFIG` |
 | `files.create_folder` | todas | `path` | `path, created` | `success`, `error` | `DESTINATION_EXISTS` (já há um *arquivo* com o nome), `PERMISSION_DENIED` |
 | `files.copy` / `files.move` | todas | `source` (aceita `*`/`?` **só no nome**), `destination`, `overwrite` | `count, items[{source,destination}], overwritten, truncated` | `success`, `error` | `PATH_NOT_FOUND`, `IS_A_DIRECTORY`, `NOT_A_DIRECTORY`, `SAME_PATH`, `DESTINATION_EXISTS`, `PERMISSION_DENIED`, `IO_ERROR` |

@@ -6,18 +6,83 @@ import {
   type WorkflowEdge,
   type WorkflowNode,
 } from "@automation-studio/workflow-schema";
-import { hasTemplate, scanTemplate } from "./templates.js";
+import { buildGraph, knownVariables, resultOf, type Graph } from "./graph.js";
+import { hasTemplate, scanTemplate, type Ref, type TemplateScan } from "./templates.js";
 import type { Issue } from "./types.js";
 
 const START_TYPE = "trigger.manual";
 const isBlank = (v: ConfigValue | undefined): boolean => v === undefined || v === null || (typeof v === "string" && v.trim() === "");
 
+interface Ctx {
+  known: Set<string>;
+  graph: Graph;
+}
+
+const INDEX = /^\d+$/;
+
+type Emit = (f: ConfigField, severity: Issue["severity"], code: Issue["code"], msg: string) => void;
+
+/** Valida cada `{{ }}` de um campo: a variável/nó/resultado/item existe? (a ordem de execução só gera aviso). */
+function validateRefs(scan: TemplateScan, node: WorkflowNode, f: ConfigField, ctx: Ctx, emit: Emit): void {
+  for (const ref of scan.refs as Ref[]) {
+    if (ref.kind === "variables") {
+      if (!ctx.known.has(ref.name)) emit(f, "error", "UNKNOWN_VARIABLE", `“${f.label}” usa a variável “${ref.name}”, que não está definida.`);
+    } else if (ref.kind === "nodes") {
+      const target = ctx.graph.nodes.get(ref.nodeId);
+      if (!target) {
+        emit(f, "error", "UNKNOWN_NODE_REF", `“${f.label}” usa o resultado do nó “${ref.nodeId}”, que não existe.`);
+        continue;
+      }
+      const tdef = getNodeDefinition(target.type);
+      const label = tdef?.label ?? target.type;
+      if (target.id === node.id) {
+        emit(f, "error", "SELF_REFERENCE", `“${f.label}” não pode usar o resultado do próprio nó.`);
+        continue;
+      }
+      const res = tdef?.results?.find((r) => r.key === ref.key);
+      if (!res) {
+        const avail = (tdef?.results ?? []).map((r) => r.key);
+        emit(f, "error", "UNKNOWN_RESULT", `“${f.label}” usa “${ref.key}”, que o nó “${label}” não oferece. ${avail.length ? `Disponíveis: ${avail.join(", ")}.` : "Esse nó não oferece resultados."}`);
+        continue;
+      }
+      const [first, second] = ref.path;
+      if (first !== undefined) {
+        if (res.type === "list") {
+          if (!INDEX.test(first)) emit(f, "error", "NOT_A_LIST", `“${ref.key}” é uma lista: use a posição (ex.: {{nodes.${ref.nodeId}.${ref.key}.0}}) ou o nó “Para cada item”.`);
+          else if (second !== undefined && res.itemProps && !res.itemProps.includes(second)) {
+            emit(f, "error", "UNKNOWN_ITEM_PROPERTY", `Os itens de “${ref.key}” não têm “${second}”. Disponíveis: ${res.itemProps.join(", ")}.`);
+          }
+        } else if (res.type !== "object") {
+          emit(f, "error", "UNKNOWN_RESULT", `“${ref.key}” é um valor simples e não tem “${first}”.`);
+        }
+      } else if (res.type === "list" && f.kind !== "list") {
+        emit(f, "error", "NOT_A_LIST", `“${ref.key}” é uma lista e não cabe em “${f.label}”. Use “Para cada item” para percorrê-la, ou uma posição (ex.: …${ref.key}.0.name).`);
+      }
+      if (!ctx.graph.reaches(target.id, node.id)) {
+        emit(f, "warning", "NODE_NOT_BEFORE", `“${f.label}” usa o resultado de “${label}”, mas esse nó pode não ter sido executado antes deste.`);
+      }
+    } else {
+      const loops = ctx.graph.loopsAt(node.id).filter((l) => l.name === ref.name);
+      if (loops.length === 0) {
+        emit(f, "error", "UNKNOWN_LOOP_VARIABLE", `“${f.label}” usa “${ref.name}”, que só existe dentro do corpo de um “Para cada item”.`);
+        continue;
+      }
+      const props = loops[0]!.itemProps;
+      const prop = ref.path[0];
+      if (props && prop !== undefined && !props.includes(prop)) {
+        emit(f, "error", "UNKNOWN_ITEM_PROPERTY", `O item “${ref.name}” não tem “${prop}”. Disponíveis: ${props.join(", ")}.`);
+      }
+    }
+  }
+}
+
 /** Valida parâmetros de um nó contra os campos do seu contrato. */
-function validateConfig(node: WorkflowNode, def: NodeDefinition, known: Set<string>): Issue[] {
+function validateConfig(node: WorkflowNode, def: NodeDefinition, ctx: Ctx): Issue[] {
   const issues: Issue[] = [];
-  const at = (f: ConfigField, code: Issue["code"], msg: string): void => {
-    issues.push({ severity: "error", code, message: `${def.label}: ${msg}`, nodeId: node.id, field: f.key });
+  const emit: Emit = (f, severity, code, msg) => {
+    issues.push({ severity, code, message: `${def.label}: ${msg}`, nodeId: node.id, field: f.key });
   };
+  const at = (f: ConfigField, code: Issue["code"], msg: string): void => emit(f, "error", code, msg);
 
   for (const f of def.fields) {
     const v = node.config[f.key];
@@ -31,14 +96,24 @@ function validateConfig(node: WorkflowNode, def: NodeDefinition, known: Set<stri
     if (templated) {
       const scan = scanTemplate(v);
       for (const e of scan.errors) at(f, "BAD_EXPRESSION", `“${f.label}”: ${e}`);
-      for (const name of scan.variables) {
-        if (!known.has(name)) at(f, "UNKNOWN_VARIABLE", `“${f.label}” usa a variável “${name}”, que não está definida.`);
-      }
+      validateRefs(scan, node, f, ctx, emit);
       if (f.kind === "select" || f.literal) at(f, "INVALID_FIELD", `“${f.label}” não aceita variáveis; informe um valor fixo.`);
+      if (f.kind === "list") {
+        const w = scan.whole;
+        if (scan.errors.length === 0 && (w?.kind !== "nodes" || w.path.length > 0)) {
+          at(f, "NOT_A_LIST", `“${f.label}” deve ser só a referência a uma lista, ex.: {{nodes.listar.files}}.`);
+        } else if (w?.kind === "nodes") {
+          const res = resultOf(ctx.graph.nodes, w.nodeId, w.key);
+          if (res && res.type !== "list") at(f, "NOT_A_LIST", `“${w.key}” não é uma lista (é ${res.type === "number" ? "um número" : res.type === "boolean" ? "um valor lógico" : "um texto"}).`);
+        }
+      }
       continue; // valor só é conhecido na execução
     }
 
     switch (f.kind) {
+      case "list":
+        at(f, "NOT_A_LIST", `“${f.label}” deve ser a referência a uma lista, ex.: {{nodes.listar.files}}; texto fixo não é uma lista.`);
+        break;
       case "number":
         if (typeof v !== "number" || !Number.isFinite(v)) at(f, "INVALID_FIELD", `“${f.label}” deve ser um número.`);
         else if (f.min !== undefined && v < f.min) at(f, "INVALID_FIELD", `“${f.label}” deve ser no mínimo ${f.min}.`);
@@ -70,9 +145,9 @@ export function validateWorkflow(doc: WorkflowDocument): Issue[] {
   const defs = new Map<string, NodeDefinition>();
 
   // ---- variáveis declaradas ----
-  const known = new Set<string>();
+  const known = knownVariables(doc); // declaradas + definidas por "Definir variável"
+  const ctx: Ctx = { known, graph: buildGraph(doc) };
   for (const [name, v] of Object.entries(doc.variables)) {
-    known.add(name);
     if (!VARIABLE_NAME_PATTERN.test(name)) {
       issues.push({ severity: "error", code: "INVALID_VARIABLE", message: `Variável “${name}”: nome inválido (use letras, números e _).` });
     }
@@ -80,11 +155,6 @@ export function validateWorkflow(doc: WorkflowDocument): Issue[] {
       issues.push({ severity: "error", code: "INVALID_VARIABLE", message: `Variável “${name}”: o valor não é do tipo ${v.type}.` });
     }
   }
-  for (const n of doc.nodes) {
-    const name = n.type === "data.set_variable" ? n.config["name"] : undefined;
-    if (typeof name === "string" && VARIABLE_NAME_PATTERN.test(name)) known.add(name); // definida em tempo de execução
-  }
-
   // ---- nós ----
   for (const n of doc.nodes) {
     if (nodes.has(n.id)) {
@@ -102,7 +172,7 @@ export function validateWorkflow(doc: WorkflowDocument): Issue[] {
       issues.push({ severity: "error", code: "UNSUPPORTED_NODE_VERSION", message: `${def.label}: versão ${n.version} do nó não é suportada (esperada ${def.version}).`, nodeId: n.id });
       continue;
     }
-    issues.push(...validateConfig(n, def, known));
+    issues.push(...validateConfig(n, def, ctx));
   }
 
   // ---- início e nós únicos ----

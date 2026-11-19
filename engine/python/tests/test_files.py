@@ -59,17 +59,26 @@ class TestList:
         first = out["files"][0]
         assert first["name"] == "a.pdf" and first["extension"] == "pdf" and first["size"] == 1
         assert first["path"] == str(tmp_path / "a.pdf") and first["modifiedAt"]
+        assert first["stem"] == "a" and first["folder"] == str(tmp_path)  # usados por "Para cada item" ({{item.stem}}, {{item.folder}})
 
     def test_padrao_vazio_lista_tudo_e_nao_inclui_pastas(self, tmp_path):
         make(tmp_path, a__txt="x", b__txt="y")
         (tmp_path / "pasta").mkdir()
         assert run("files.list", {"path": str(tmp_path), "pattern": ""})["outputs"]["count"] == 2
 
+    def test_stem_com_varios_pontos_e_sem_extensao(self, tmp_path):
+        make(tmp_path, **{"relatorio__final__v2__PDF": "x", "LEIAME": "y"})
+        by = {f["name"]: f for f in run("files.list", {"path": str(tmp_path)})["outputs"]["files"]}
+        assert (by["relatorio.final.v2.PDF"]["stem"], by["relatorio.final.v2.PDF"]["extension"]) == ("relatorio.final.v2", "pdf")
+        assert (by["LEIAME"]["stem"], by["LEIAME"]["extension"]) == ("LEIAME", "")
+
     def test_recursivo(self, tmp_path):
         make(tmp_path, a__txt="x")
         make(tmp_path / "s1" / "s2", b__txt="y")
         assert run("files.list", {"path": str(tmp_path)})["outputs"]["count"] == 1
-        assert run("files.list", {"path": str(tmp_path), "recursive": True})["outputs"]["count"] == 2
+        rec = run("files.list", {"path": str(tmp_path), "recursive": True})["outputs"]
+        assert rec["count"] == 2
+        assert {f["folder"] for f in rec["files"]} == {str(tmp_path), str(tmp_path / "s1" / "s2")}  # cada item sabe sua pasta
 
     def test_limite_de_itens_marca_truncado_e_ainda_conta_o_total(self, tmp_path, monkeypatch):
         from automation_engine.actions import files
@@ -78,6 +87,8 @@ class TestList:
         make(tmp_path, **{f"f{i}__txt": "x" for i in range(10)})
         out = run("files.list", {"path": str(tmp_path)})["outputs"]
         assert out["count"] == 10 and len(out["files"]) == 3 and out["truncated"] is True
+        msg = run("files.list", {"path": str(tmp_path)})["message"]
+        assert "ATENÇÃO" in msg and "primeiros 3" in msg and "7 ficaram de fora" in msg  # resultado incompleto nunca parece completo
 
     def test_pasta_inexistente_e_arquivo_no_lugar_de_pasta(self, tmp_path):
         assert err("files.list", {"path": str(tmp_path / "nao")}).code == "PATH_NOT_FOUND"

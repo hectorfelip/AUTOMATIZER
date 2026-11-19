@@ -21,6 +21,33 @@ describe("node registry", () => {
     }
   });
 
+  it("resultados: chaves únicas, tipos válidos e listas de objetos declaram as propriedades do item", () => {
+    for (const d of NODE_DEFINITIONS) {
+      const keys = (d.results ?? []).map((x) => x.key);
+      expect(new Set(keys).size, d.type).toBe(keys.length);
+      for (const res of d.results ?? []) {
+        expect(["string", "number", "boolean", "list", "object"]).toContain(res.type);
+        expect(res.key).toMatch(/^[A-Za-z_][A-Za-z0-9_]*$/); // usável em {{nodes.id.chave}}
+        if (res.itemProps) expect(res.type).toBe("list");
+      }
+    }
+    const files = getNodeDefinition("files.list")!.results!.find((x) => x.key === "files")!;
+    expect(files).toMatchObject({ type: "list" });
+    expect(files.itemProps).toEqual(expect.arrayContaining(["name", "stem", "extension", "path"]));
+  });
+
+  it("Para cada item: lista obrigatória, nome do item fixo e saídas corpo/depois", () => {
+    const d = getNodeDefinition("flow.foreach")!;
+    expect(d.outputs.map((o) => o.id)).toEqual(["body", "done"]);
+    expect(d.fields.find((f) => f.key === "items")).toMatchObject({ kind: "list", required: true });
+    const name = d.fields.find((f) => f.key === "itemName")!;
+    expect(name).toMatchObject({ literal: true, default: "item" });
+    const re = new RegExp(name.pattern!);
+    expect(["item", "arquivo", "_x1"].every((n) => re.test(n))).toBe(true);
+    expect(["variables", "nodes", "1x", "a-b", ""].some((n) => re.test(n))).toBe(false); // reservados e inválidos
+    expect(defaultConfig(d)).toEqual({ itemName: "item" });
+  });
+
   it("todo fluxo tem exatamente um tipo de início e ele é único", () => {
     expect(getNodeDefinition("trigger.manual")).toMatchObject({ unique: true, inputs: [] });
     expect(getNodeDefinition("flow.end")?.outputs).toEqual([]);

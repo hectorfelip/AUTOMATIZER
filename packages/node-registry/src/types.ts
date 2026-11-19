@@ -1,6 +1,6 @@
 import type { ConfigValue } from "@automation-studio/workflow-schema";
 
-export type FieldKind = "text" | "path" | "number" | "boolean" | "select";
+export type FieldKind = "text" | "path" | "number" | "boolean" | "select" | "list";
 
 /** Parâmetro configurável de um nó. A UI (painel de propriedades) e o validador derivam disto. */
 export interface ConfigField {
@@ -21,6 +21,17 @@ export interface ConfigField {
   patternMessage?: string;
 }
 
+export type ResultType = "string" | "number" | "boolean" | "list" | "object";
+
+/** Resultado que um nó expõe a outros via `{{nodes.<id>.<key>}}` (validado em tempo de desenho). */
+export interface ResultDef {
+  key: string;
+  label: string;
+  type: ResultType;
+  /** Para listas de objetos: propriedades de cada item (`{{item.<prop>}}`). */
+  itemProps?: string[];
+}
+
 export interface Port {
   id: string;
   label: string;
@@ -39,6 +50,8 @@ export interface NodeDefinition {
   inputs: Port[];
   outputs: Port[];
   fields: ConfigField[];
+  /** Resultados disponíveis para os nós seguintes. */
+  results?: ResultDef[];
   /** No máximo uma instância por fluxo (ex.: início). */
   unique?: boolean;
 }

@@ -1,11 +1,16 @@
 import type { ConfigField } from "@automation-studio/node-registry";
 import type { ConfigValue } from "@automation-studio/workflow-schema";
+import type { AvailableRefs } from "@automation-studio/workflow-validator";
 import { useId } from "react";
+import { ReferencePicker } from "./ReferencePicker";
+import { insertReference } from "./referenceOptions";
 
 interface Props {
   field: ConfigField;
   value: ConfigValue | undefined;
   error?: string;
+  /** Referências disponíveis para este campo (variáveis, resultados de nós anteriores, item do laço). */
+  refs?: AvailableRefs;
   onChange: (value: ConfigValue) => void;
 }
 
@@ -13,7 +18,7 @@ const NUMERIC = /^-?\d+(\.\d+)?$/;
 const input = "w-full rounded-md border bg-bg px-3 py-1.5 text-sm text-fg placeholder:text-muted";
 
 /** Um campo do painel de propriedades, gerado a partir do contrato do nó. */
-export function FieldInput({ field, value, error, onChange }: Props) {
+export function FieldInput({ field, value, error, refs, onChange }: Props) {
   const id = useId();
   const errId = `${id}-err`;
   const border = error ? "border-danger" : "border-line";
@@ -58,6 +63,9 @@ export function FieldInput({ field, value, error, onChange }: Props) {
         {field.required && <span aria-hidden="true"> *</span>}
       </label>
       {control}
+      {refs && field.kind !== "boolean" && field.kind !== "select" && !field.literal && (
+        <ReferencePicker field={field} refs={refs} onPick={(ref) => onChange(insertReference(value === undefined || value === null ? "" : String(value), ref, field.kind))} />
+      )}
       {field.help && <p className="text-xs text-muted">{field.help}</p>}
       {error && (
         <p id={errId} className="text-xs text-danger">

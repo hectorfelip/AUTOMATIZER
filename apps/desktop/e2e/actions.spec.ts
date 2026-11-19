@@ -154,3 +154,102 @@ test("ativar 'Sobrescrever' exige confirmação; cancelar mantém desligado", as
   await expect(dlg).toBeHidden();
   await closeApp(app);
 });
+
+// ---------- etapa 2: "Para cada item" e resultado dos nós ----------
+import { localizeSeparators } from "./helpers";
+
+test("exemplo 'Organizar por tipo': cria, edita as variáveis, executa e os arquivos vão para as pastas certas", async () => {
+  const base = tmp();
+  const origem = join(base, "Downloads");
+  mkdirSync(origem);
+  for (const f of ["a.pdf", "b.pdf", "nota.txt", "foto.JPG", "LEIAME"]) writeFileSync(join(origem, f), f);
+  const destino = join(base, "Organizados");
+
+  const { app, page } = await launch(newDataDir());
+  await page.getByRole("navigation", { name: "Principal" }).getByRole("button", { name: "Automações" }).click();
+  await page.getByRole("button", { name: "Novo a partir de exemplo" }).click();
+  const dialog = page.getByRole("dialog", { name: "Novo a partir de exemplo" });
+  await dialog.getByLabel(/Organizar por tipo de arquivo/).check();
+  await dialog.getByLabel("Nome (opcional)").fill("Por tipo");
+  await dialog.getByRole("button", { name: "Criar e abrir" }).click();
+  await expect(page.getByRole("heading", { name: "Por tipo" })).toBeVisible();
+  await expect(page.getByTestId("validation-summary")).toHaveText("Fluxo válido"); // o exemplo já nasce válido
+  await expect(page.locator(".react-flow__node")).toHaveCount(6);
+
+  await page.getByRole("button", { name: "← Automações" }).click();
+  await localizeSeparators(page, "Por tipo"); // (só fora do Windows)
+  await page.getByRole("button", { name: "Abrir Por tipo" }).click();
+  await expect(page.locator(".react-flow__node").first()).toBeVisible();
+  await page.getByRole("tab", { name: "Variáveis" }).click();
+  await page.getByLabel("Valor de origem").fill(origem);
+  await page.getByLabel("Valor de destino").fill(destino);
+
+  await waitEngineReady(page);
+  await page.getByRole("button", { name: "Executar" }).click();
+  await expect(runStatus(page)).toContainText("Execução concluída", { timeout: 15_000 });
+  await expect(page.getByTestId("run-row-cada")).toContainText("5 item(ns) processado(s).");
+  expect(names(join(destino, "pdf"))).toEqual(["a.pdf", "b.pdf"]);
+  expect(names(join(destino, "txt"))).toEqual(["nota.txt"]);
+  expect(names(join(destino, "jpg"))).toEqual(["foto.JPG"]);
+  expect(readdirSync(destino).sort()).toEqual(["LEIAME", "jpg", "pdf", "txt"]);
+  expect(readdirSync(origem)).toEqual([]);
+  await closeApp(app);
+});
+
+test("seletor 'Inserir…' oferece só o que existe naquele ponto do fluxo; erro de propriedade aparece antes de executar", async () => {
+  const { app, page } = await launch(newDataDir());
+  await seedFlow(page, "Referências", {
+    nodes: [
+      n("start", "trigger.manual"),
+      n("list", "files.list", { path: "/tmp", pattern: "*" }),
+      n("each", "flow.foreach", { items: "", itemName: "arquivo" }),
+      n("mv", "files.move", { source: "", destination: "/tmp/out" }),
+      n("end", "flow.end"),
+    ],
+    edges: [e("start", "next", "list"), e("list", "success", "each"), e("each", "body", "mv"), e("mv", "success", "each"), e("each", "done", "end")],
+    variables: { destino: { type: "string", value: "/tmp/out" } },
+  });
+  await openEditor(page, "Referências");
+  const panel = page.getByRole("complementary", { name: "Painel lateral" }); // (o canvas também tem elementos com aria-label "Listar arquivos"...)
+
+  // "Para cada item": o campo Lista só oferece listas de nós anteriores
+  await page.locator(".react-flow__node", { hasText: "Para cada item" }).click();
+  const picker = panel.getByLabel("Inserir referência em Lista");
+  await expect(picker.locator("option")).toHaveText(["Inserir…", "Listar arquivos › Arquivos"]);
+  await picker.selectOption({ label: "Listar arquivos › Arquivos" });
+  await expect(panel.getByLabel(/^Lista/)).toHaveValue("{{nodes.list.files}}");
+
+  // "Mover arquivo": oferece variáveis, resultados de nós anteriores e as propriedades do item com o NOME escolhido (arquivo)
+  await page.locator(".react-flow__node", { hasText: "Mover arquivo" }).click();
+  const origem = panel.getByLabel("Inserir referência em Origem");
+  const opts = await origem.locator("option").allTextContents();
+  expect(opts).toEqual(expect.arrayContaining(["destino", "Listar arquivos › Quantidade de arquivos (número)", "arquivo.name", "arquivo.path", "arquivo.extension"]));
+  expect(opts).not.toContain("Arquivos"); // lista inteira não cabe num campo de texto
+  expect(opts.some((o) => o.startsWith("Mover arquivo ›"))).toBe(false); // nunca o próprio nó
+
+  // erro de digitação na propriedade: apontado ANTES de executar, com as opções válidas
+  await panel.getByLabel(/^Origem/).fill("{{arquivo.pth}}");
+  await page.getByRole("tab", { name: /Problemas/ }).click();
+  await expect(page.getByText("O item “arquivo” não tem “pth”. Disponíveis: name, stem, extension, path, folder, size, modifiedAt.")).toBeVisible();
+  await expect(page.getByTestId("validation-summary")).toContainText("erro");
+  await expect(page.getByRole("button", { name: "Executar" })).toBeDisabled();
+
+  // o item não existe fora do corpo do laço
+  await page.getByRole("tab", { name: "Propriedades" }).click();
+  await panel.getByLabel(/^Origem/).fill("");
+  await panel.getByLabel("Inserir referência em Origem").selectOption({ label: "arquivo.path" });
+  await expect(panel.getByLabel(/^Origem/)).toHaveValue("{{arquivo.path}}");
+  await panel.getByLabel("Inserir referência em Origem").selectOption({ label: "arquivo.extension" }); // em texto, acrescenta
+  await expect(panel.getByLabel(/^Origem/)).toHaveValue("{{arquivo.path}}{{arquivo.extension}}");
+  await panel.getByLabel(/^Origem/).fill("{{arquivo.path}}");
+  await page.locator(".react-flow__node", { hasText: "Listar arquivos" }).click();
+  await panel.getByLabel(/^Pasta/).fill("{{arquivo.path}}");
+  await page.getByRole("tab", { name: /Problemas/ }).click();
+  await expect(page.getByText("só existe dentro do corpo de um “Para cada item”")).toBeVisible();
+
+  // corrigindo, o fluxo fica válido
+  await page.getByRole("tab", { name: "Propriedades" }).click();
+  await panel.getByLabel(/^Pasta/).fill("/tmp");
+  await expect(page.getByTestId("validation-summary")).toHaveText("Fluxo válido");
+  await closeApp(app);
+});

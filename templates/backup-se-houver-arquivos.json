@@ -1,0 +1,165 @@
+{
+  "meta": {
+    "id": "backup-se-houver-arquivos",
+    "name": "Backup somente se houver arquivos",
+    "description": "Lista os arquivos .docx de uma pasta e só faz o backup se encontrar algum. Mostra como usar o resultado de um nó (“quantidade de arquivos”) numa decisão.",
+    "windowsOnly": false
+  },
+  "workflow": {
+    "schemaVersion": 1,
+    "id": "template",
+    "name": "template",
+    "nodes": [
+      {
+        "id": "start",
+        "type": "trigger.manual",
+        "version": 1,
+        "config": {}
+      },
+      {
+        "id": "listar",
+        "type": "files.list",
+        "version": 1,
+        "config": {
+          "path": "{{variables.origem}}",
+          "pattern": "*.docx",
+          "recursive": false
+        }
+      },
+      {
+        "id": "tem",
+        "type": "flow.condition",
+        "version": 1,
+        "config": {
+          "left": "{{nodes.listar.count}}",
+          "operator": "greater",
+          "right": "0"
+        }
+      },
+      {
+        "id": "pasta",
+        "type": "files.create_folder",
+        "version": 1,
+        "config": {
+          "path": "{{variables.backup}}"
+        }
+      },
+      {
+        "id": "copiar",
+        "type": "files.copy",
+        "version": 1,
+        "config": {
+          "source": "{{variables.origem}}\\*.docx",
+          "destination": "{{variables.backup}}",
+          "overwrite": false
+        }
+      },
+      {
+        "id": "feito",
+        "type": "flow.end",
+        "version": 1,
+        "config": {
+          "message": "Backup concluído"
+        }
+      },
+      {
+        "id": "nada",
+        "type": "flow.end",
+        "version": 1,
+        "config": {
+          "message": "Nenhum arquivo novo: nada a fazer"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e:start.next>listar",
+        "source": "start",
+        "sourceHandle": "next",
+        "target": "listar",
+        "targetHandle": "input"
+      },
+      {
+        "id": "e:listar.success>tem",
+        "source": "listar",
+        "sourceHandle": "success",
+        "target": "tem",
+        "targetHandle": "input"
+      },
+      {
+        "id": "e:tem.true>pasta",
+        "source": "tem",
+        "sourceHandle": "true",
+        "target": "pasta",
+        "targetHandle": "input"
+      },
+      {
+        "id": "e:tem.false>nada",
+        "source": "tem",
+        "sourceHandle": "false",
+        "target": "nada",
+        "targetHandle": "input"
+      },
+      {
+        "id": "e:pasta.success>copiar",
+        "source": "pasta",
+        "sourceHandle": "success",
+        "target": "copiar",
+        "targetHandle": "input"
+      },
+      {
+        "id": "e:copiar.success>feito",
+        "source": "copiar",
+        "sourceHandle": "success",
+        "target": "feito",
+        "targetHandle": "input"
+      }
+    ],
+    "variables": {
+      "origem": {
+        "type": "string",
+        "value": "%USERPROFILE%\\Documents"
+      },
+      "backup": {
+        "type": "string",
+        "value": "%USERPROFILE%\\Documents\\Backup"
+      }
+    },
+    "settings": {
+      "timeoutSeconds": 600,
+      "errorPolicy": "stop"
+    },
+    "visual": {
+      "positions": {
+        "start": {
+          "x": 0,
+          "y": 160
+        },
+        "listar": {
+          "x": 220,
+          "y": 140
+        },
+        "tem": {
+          "x": 480,
+          "y": 140
+        },
+        "pasta": {
+          "x": 760,
+          "y": 20
+        },
+        "copiar": {
+          "x": 1010,
+          "y": 20
+        },
+        "feito": {
+          "x": 1270,
+          "y": 40
+        },
+        "nada": {
+          "x": 760,
+          "y": 300
+        }
+      }
+    }
+  }
+}

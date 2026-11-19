@@ -1,6 +1,6 @@
 # ADR 0007 — Biblioteca de ações (Fase 4, etapa 1)
 
-**Status:** proposta — aguardando validação no Windows e aval do Hector (itens ⚠️ são decisões de UX/escopo)
+**Status:** aceita (decisões aprovadas pelo Hector). Validação no Windows das ações de janela/teclado/mouse: ainda não confirmada
 
 ## Contexto
 O roadmap pede, nesta fase, "uma automação útil de organização de arquivos". A lista de ações não tem como repetir uma ação **para cada** arquivo listado. O Hector escolheu **os dois, em etapas**: etapa 1 = a lista do roadmap com curingas em copiar/mover/renomear; etapa 2 (após validar a 1 no Windows) = "Para cada item" + resultado dos nós nas expressões, com ADR próprio.

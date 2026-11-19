@@ -1,0 +1,152 @@
+{
+  "meta": {
+    "id": "organizar-por-tipo",
+    "name": "Organizar por tipo de arquivo",
+    "description": "Para cada arquivo da pasta de origem, cria uma subpasta com o nome da extensão (pdf, jpg, txt…) em “destino” e move o arquivo para lá. Arquivos sem extensão ficam direto em “destino”. Exemplo de “Para cada item”. Processa até 2000 arquivos por execução; se houver mais, a mensagem de “Listar arquivos” avisa e basta rodar de novo.",
+    "windowsOnly": false
+  },
+  "workflow": {
+    "schemaVersion": 1,
+    "id": "template",
+    "name": "template",
+    "nodes": [
+      {
+        "id": "start",
+        "type": "trigger.manual",
+        "version": 1,
+        "config": {}
+      },
+      {
+        "id": "listar",
+        "type": "files.list",
+        "version": 1,
+        "config": {
+          "path": "{{variables.origem}}",
+          "pattern": "*",
+          "recursive": false
+        }
+      },
+      {
+        "id": "cada",
+        "type": "flow.foreach",
+        "version": 1,
+        "config": {
+          "items": "{{nodes.listar.files}}",
+          "itemName": "item"
+        }
+      },
+      {
+        "id": "pasta",
+        "type": "files.create_folder",
+        "version": 1,
+        "config": {
+          "path": "{{variables.destino}}\\{{item.extension}}"
+        }
+      },
+      {
+        "id": "mover",
+        "type": "files.move",
+        "version": 1,
+        "config": {
+          "source": "{{item.path}}",
+          "destination": "{{variables.destino}}\\{{item.extension}}",
+          "overwrite": false
+        }
+      },
+      {
+        "id": "fim",
+        "type": "flow.end",
+        "version": 1,
+        "config": {
+          "message": "Arquivos organizados por tipo"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e:start.next>listar",
+        "source": "start",
+        "sourceHandle": "next",
+        "target": "listar",
+        "targetHandle": "input"
+      },
+      {
+        "id": "e:listar.success>cada",
+        "source": "listar",
+        "sourceHandle": "success",
+        "target": "cada",
+        "targetHandle": "input"
+      },
+      {
+        "id": "e:cada.body>pasta",
+        "source": "cada",
+        "sourceHandle": "body",
+        "target": "pasta",
+        "targetHandle": "input"
+      },
+      {
+        "id": "e:pasta.success>mover",
+        "source": "pasta",
+        "sourceHandle": "success",
+        "target": "mover",
+        "targetHandle": "input"
+      },
+      {
+        "id": "e:mover.success>cada",
+        "source": "mover",
+        "sourceHandle": "success",
+        "target": "cada",
+        "targetHandle": "input"
+      },
+      {
+        "id": "e:cada.done>fim",
+        "source": "cada",
+        "sourceHandle": "done",
+        "target": "fim",
+        "targetHandle": "input"
+      }
+    ],
+    "variables": {
+      "origem": {
+        "type": "string",
+        "value": "%USERPROFILE%\\Downloads"
+      },
+      "destino": {
+        "type": "string",
+        "value": "%USERPROFILE%\\Documents\\Organizados"
+      }
+    },
+    "settings": {
+      "timeoutSeconds": 600,
+      "errorPolicy": "stop"
+    },
+    "visual": {
+      "positions": {
+        "start": {
+          "x": 0,
+          "y": 140
+        },
+        "listar": {
+          "x": 220,
+          "y": 120
+        },
+        "cada": {
+          "x": 470,
+          "y": 120
+        },
+        "pasta": {
+          "x": 740,
+          "y": 20
+        },
+        "mover": {
+          "x": 990,
+          "y": 20
+        },
+        "fim": {
+          "x": 740,
+          "y": 260
+        }
+      }
+    }
+  }
+}

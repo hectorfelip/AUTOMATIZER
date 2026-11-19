@@ -2,9 +2,10 @@ import { describe, expect, it } from "vitest";
 import { defaultConfig, getNodeDefinition } from "@automation-studio/node-registry";
 import type { ActionOutcome, ActionRequest, ExecutionEvent } from "@automation-studio/shared-types";
 import { createEmptyWorkflow, type ConfigValue, type WorkflowDocument } from "@automation-studio/workflow-schema";
-import { resolveConfig, runWorkflow, type ActionExecutor } from "./index.js";
+import { resolveConfig, runWorkflow, type ActionExecutor, type ResolveContext } from "./index.js";
 
 let doc: WorkflowDocument;
+const ctxOf = (variables: ResolveContext["variables"] = {}, extra: Partial<ResolveContext> = {}): ResolveContext => ({ variables, nodes: new Map(), labels: new Map(), loops: [], ...extra });
 const node = (id: string, type: string, config: Record<string, ConfigValue> = {}) =>
   doc.nodes.push({ id, type, version: 1, config: { ...defaultConfig(getNodeDefinition(type)!), ...config } });
 const edge = (source: string, handle: string, target: string) =>
@@ -104,10 +105,10 @@ describe("variáveis", () => {
   });
 
   it("resolveConfig: variável inexistente e expressão não suportada são erros, nada é avaliado", () => {
-    expect(resolveConfig({ a: "{{variables.x}}" }, {})).toEqual({ ok: false, message: "“a” usa a variável “x”, que não está definida." });
-    const bad = resolveConfig({ a: "{{ process.exit(1) }}" }, {});
+    expect(resolveConfig({ a: "{{variables.x}}" }, ctxOf())).toEqual({ ok: false, message: "“a”: A variável “x” não está definida." });
+    const bad = resolveConfig({ a: "{{ process.exit(1) }}" }, ctxOf());
     expect(bad.ok).toBe(false);
-    expect(resolveConfig({ a: 1, b: true, c: null, d: "texto" }, {})).toEqual({ ok: true, config: { a: 1, b: true, c: null, d: "texto" } });
+    expect(resolveConfig({ a: 1, b: true, c: null, d: "texto" }, ctxOf())).toEqual({ ok: true, config: { a: 1, b: true, c: null, d: "texto" } });
   });
 
   it("cada execução tem seu contexto: o documento não é alterado e execuções simultâneas não se misturam", async () => {
@@ -441,5 +442,250 @@ describe("Repetir N vezes", () => {
     let n = 0;
     const r = await run(() => (++n === 2 ? { kind: "failed", error: { code: "X", message: "quebrou" } } : { kind: "completed", outputs: {} })).result;
     expect(r).toMatchObject({ status: "failed", error: { message: "Esperar: quebrou" } });
+  });
+});
+
+
+// ---------- resultados de nós e "Para cada item" ----------
+const file = (name: string, folder = "C:\\in") => {
+  const dot = name.lastIndexOf(".");
+  return { name, stem: dot < 0 ? name : name.slice(0, dot), extension: dot < 0 ? "" : name.slice(dot + 1), path: `${folder}\\${name}`, folder, size: 1, modifiedAt: "2026-01-01T00:00:00" };
+};
+/** Executor que devolve `files` para files.list e sucesso para o resto. */
+const listing = (files: unknown): Script => (req) =>
+  req.action === "files.list" ? { kind: "completed", outputs: { count: Array.isArray(files) ? files.length : 0, files, folder: "C:\\in", truncated: false } } : { kind: "completed", outputs: {} };
+
+describe("resultado dos nós: {{nodes.<id>.<resultado>}}", () => {
+  /** start → list → (condição por count) */
+  const countFlow = () => {
+    doc = createEmptyWorkflow("f", "R");
+    node("list", "files.list", { path: "C:\\in" });
+    node("c", "flow.condition", { left: "{{nodes.list.count}}", operator: "greater", right: "0" });
+    node("sim", "flow.end", { message: "tem" });
+    node("nao", "flow.end", { message: "vazio" });
+    edge("start", "next", "list"); edge("list", "success", "c"); edge("c", "true", "sim"); edge("c", "false", "nao");
+  };
+  const last = async (r: ReturnType<typeof run>) => (await r.result, (r.events.at(-1) as { message?: string }).message);
+
+  it("decide com a quantidade devolvida por um nó anterior", async () => {
+    countFlow();
+    expect(await last(run(listing([file("a.pdf"), file("b.pdf")])))).toBe("tem");
+    expect(await last(run(listing([])))).toBe("vazio");
+  });
+
+  it("número continua número: 'Repetir' usa a quantidade como nº de voltas", async () => {
+    doc = createEmptyWorkflow("f", "R");
+    node("list", "files.list", { path: "C:\\in" });
+    node("r", "flow.repeat", { times: "{{nodes.list.count}}" });
+    node("w", "flow.wait", { seconds: 0 });
+    node("end", "flow.end");
+    edge("start", "next", "list"); edge("list", "success", "r"); edge("r", "body", "w"); edge("w", "next", "r"); edge("r", "done", "end");
+    const { calls, result } = run(listing([file("a"), file("b"), file("c")]));
+    expect((await result).status).toBe("completed");
+    expect(calls.filter((c) => c.action === "flow.wait")).toHaveLength(3);
+  });
+
+  it("interpola em texto e acessa uma posição da lista", async () => {
+    doc = createEmptyWorkflow("f", "R");
+    node("list", "files.list", { path: "C:\\in" });
+    node("t", "input.type_text", { text: "achei {{nodes.list.count}}; o primeiro é {{nodes.list.files.0.name}}" });
+    edge("start", "next", "list"); edge("list", "success", "t");
+    const { calls, result } = run(listing([file("relatorio.pdf"), file("b.txt")]));
+    await result;
+    expect(calls[1]!.config["text"]).toBe("achei 2; o primeiro é relatorio.pdf");
+  });
+
+  it("nó que ainda não rodou: erro claro em tempo de execução (a ordem só gera aviso no desenho)", async () => {
+    doc = createEmptyWorkflow("f", "R");
+    node("t", "input.type_text", { text: "{{nodes.list.count}}" });
+    node("list", "files.list", { path: "C:\\in" });
+    edge("start", "next", "t"); edge("t", "success", "list");
+    const r = await run(ok).result;
+    expect(r).toMatchObject({ status: "failed", error: { code: "INVALID_CONFIG", message: expect.stringContaining("Listar arquivos” ainda não foi executado") } });
+  });
+
+  it("lista e objeto em campo de texto explicam o que fazer, em vez de virar '[object Object]'", () => {
+    const ctx = ctxOf({}, { nodes: new Map([["l", { files: [file("a")], meta: { x: 1 } }]]), labels: new Map([["l", "Listar arquivos"]]) });
+    expect(resolveConfig({ t: "{{nodes.l.files}}" }, ctx, { t: "text" })).toMatchObject({ ok: false, message: expect.stringContaining("é uma lista; percorra-a com “Para cada item”") });
+    expect(resolveConfig({ t: "{{nodes.l.files.0}}" }, ctx, { t: "text" })).toMatchObject({ ok: false, message: expect.stringContaining("é um objeto") });
+    expect(resolveConfig({ t: "x {{nodes.l.meta}} y" }, ctx, { t: "text" })).toMatchObject({ ok: false });
+  });
+
+  it("caminhos seguros: só propriedades próprias e posições; nunca length, métodos nem protótipo", () => {
+    const ctx = ctxOf({}, { nodes: new Map([["l", { files: [file("a")], nome: "abc" }]]), loops: [{ nodeId: "e", name: "item", item: file("a"), index: 1, count: 1 }] });
+    for (const bad of ["{{nodes.l.files.length}}", "{{nodes.l.files.1}}", "{{nodes.l.nome.length}}", "{{item.toString}}", "{{item.hasOwnProperty}}", "{{item.inexistente}}", "{{nodes.l.files.0.nmae}}"]) {
+      expect(resolveConfig({ t: bad }, ctx, { t: "text" }), bad).toMatchObject({ ok: false });
+    }
+    // e o que a sintaxe nem deixa passar:
+    for (const bad of ["{{item.constructor}}", "{{item.__proto__}}", "{{nodes.l.files.0.constructor}}", "{{item.constructor.constructor('return process')()}}"]) {
+      expect(resolveConfig({ t: bad }, ctx, { t: "text" }), bad).toMatchObject({ ok: false });
+    }
+    expect(resolveConfig({ t: "{{item.name}}" }, ctx, { t: "text" })).toEqual({ ok: true, config: { t: "a" } });
+  });
+
+  it("propriedade que só existe no PROTÓTIPO do item não vaza (distingue hasOwn de 'in')", () => {
+    const item = Object.create({ segredo: "vazou", nome: "herdado" }) as Record<string, unknown>;
+    item["publica"] = "ok";
+    const ctx = ctxOf({}, { loops: [{ nodeId: "e", name: "item", item, index: 1, count: 1 }] });
+    expect(resolveConfig({ t: "{{item.publica}}" }, ctx, { t: "text" })).toEqual({ ok: true, config: { t: "ok" } });
+    for (const leaked of ["{{item.segredo}}", "{{item.nome}}"]) {
+      const r = resolveConfig({ t: leaked }, ctx, { t: "text" });
+      expect(r, leaked).toMatchObject({ ok: false, message: expect.stringContaining("não existe") });
+    }
+  });
+
+  it("Definir variável não aceita lista nem objeto", async () => {
+    doc = createEmptyWorkflow("f", "R");
+    node("list", "files.list", { path: "C:\\in" });
+    node("sv", "data.set_variable", { name: "x", value: "{{nodes.list.files}}" });
+    edge("start", "next", "list"); edge("list", "success", "sv");
+    const r = await run(listing([file("a")])).result;
+    expect(r).toMatchObject({ status: "failed" }); // o validador já recusa (NOT_A_LIST); se passasse, o interpretador também recusaria
+  });
+});
+
+describe("Para cada item", () => {
+  /** start → list → each ─body→ mv ─→ each ;  each ─done→ end */
+  const eachFlow = (itemName = "item", items = "{{nodes.list.files}}") => {
+    doc = createEmptyWorkflow("f", "E");
+    node("list", "files.list", { path: "C:\\in" });
+    node("each", "flow.foreach", { items, itemName });
+    node("mv", "files.move", { source: `{{${itemName}.path}}`, destination: `C:\\out\\{{${itemName}.extension}}` });
+    node("end", "flow.end", { message: "fim" });
+    edge("start", "next", "list"); edge("list", "success", "each"); edge("each", "body", "mv"); edge("mv", "success", "each"); edge("each", "done", "end");
+  };
+
+  it("executa o corpo uma vez por item, com as propriedades de cada um", async () => {
+    eachFlow();
+    const files = [file("a.pdf"), file("b.txt"), file("c.pdf")];
+    const { calls, events, result } = run(listing(files));
+    expect((await result).status).toBe("completed");
+    const moves = calls.filter((c) => c.action === "files.move");
+    expect(moves.map((c) => c.config)).toEqual([
+      { source: "C:\\in\\a.pdf", destination: "C:\\out\\pdf", overwrite: false },
+      { source: "C:\\in\\b.txt", destination: "C:\\out\\txt", overwrite: false },
+      { source: "C:\\in\\c.pdf", destination: "C:\\out\\pdf", overwrite: false },
+    ]);
+    const msgs = events.filter((e) => e.type === "node_completed" && e.nodeId === "each").map((e) => (e as { message?: string }).message);
+    expect(msgs).toEqual(["Item 1 de 3.", "Item 2 de 3.", "Item 3 de 3.", "3 item(ns) processado(s)."]);
+    expect((events.at(-1) as { message?: string }).message).toBe("fim");
+  });
+
+  it("posição e total ficam disponíveis como resultado do laço", async () => {
+    eachFlow();
+    doc.nodes.find((n) => n.id === "mv")!.config = { source: "{{item.path}}", destination: "C:\\out\\{{nodes.each.index}}-de-{{nodes.each.count}}" };
+    const { calls, result } = run(listing([file("a"), file("b")]));
+    await result;
+    expect(calls.filter((c) => c.action === "files.move").map((c) => c.config["destination"])).toEqual(["C:\\out\\1-de-2", "C:\\out\\2-de-2"]);
+  });
+
+  it("lista vazia: o corpo nunca roda e o fluxo segue por 'Depois'", async () => {
+    eachFlow();
+    const { calls, events, result } = run(listing([]));
+    expect((await result).status).toBe("completed");
+    expect(calls.filter((c) => c.action === "files.move")).toHaveLength(0);
+    expect(events.find((e) => e.type === "node_completed" && e.nodeId === "each")).toMatchObject({ port: "done", message: "A lista está vazia; nada a repetir." });
+  });
+
+  it("itens que são texto ou número (não objetos): {{item}} inteiro", async () => {
+    doc = createEmptyWorkflow("f", "E");
+    node("list", "files.list", { path: "C:\\in" });
+    node("each", "flow.foreach", { items: "{{nodes.list.files}}", itemName: "nome" });
+    node("t", "input.type_text", { text: "oi {{nome}}" });
+    node("w", "flow.wait", { seconds: "{{nome}}" });
+    node("end", "flow.end");
+    edge("start", "next", "list"); edge("list", "success", "each"); edge("each", "body", "t"); edge("t", "success", "w"); edge("w", "next", "each"); edge("each", "done", "end");
+    const { calls, result } = run(listing([1, 2]));
+    expect((await result).status).toBe("completed");
+    expect(calls.filter((c) => c.action === "input.type_text").map((c) => c.config["text"])).toEqual(["oi 1", "oi 2"]);
+    expect(calls.filter((c) => c.action === "flow.wait").map((c) => c.config["seconds"])).toEqual([1, 2]); // número continua número
+  });
+
+  it("laços aninhados com nomes diferentes: 2 pastas × 3 arquivos = 6 passagens, cada uma com seus dois itens", async () => {
+    doc = createEmptyWorkflow("f", "E");
+    node("l1", "files.list", { path: "C:\\a" });
+    node("fora", "flow.foreach", { items: "{{nodes.l1.files}}", itemName: "pasta" });
+    node("l2", "files.list", { path: "{{pasta.path}}" });
+    node("dentro", "flow.foreach", { items: "{{nodes.l2.files}}", itemName: "arq" });
+    node("t", "input.type_text", { text: "{{pasta.name}}/{{arq.name}}" });
+    node("end", "flow.end");
+    edge("start", "next", "l1"); edge("l1", "success", "fora"); edge("fora", "body", "l2"); edge("l2", "success", "dentro");
+    edge("dentro", "body", "t"); edge("t", "success", "dentro"); edge("dentro", "done", "fora"); edge("fora", "done", "end");
+    const { calls, result } = run((req) => {
+      if (req.action !== "files.list") return { kind: "completed", outputs: {} };
+      const root = req.config["path"] === "C:\\a";
+      return { kind: "completed", outputs: { count: 0, files: root ? [file("P1", "C:\\a"), file("P2", "C:\\a")] : [file("x"), file("y"), file("z")] } };
+    });
+    expect((await result).status).toBe("completed");
+    expect(calls.filter((c) => c.action === "input.type_text").map((c) => c.config["text"])).toEqual(["P1/x", "P1/y", "P1/z", "P2/x", "P2/y", "P2/z"]);
+  });
+
+  it("mesmo nome em laços aninhados: o de dentro vale enquanto roda e o de fora volta depois", async () => {
+    doc = createEmptyWorkflow("f", "E");
+    node("l1", "files.list", { path: "C:\\a" });
+    node("fora", "flow.foreach", { items: "{{nodes.l1.files}}", itemName: "item" });
+    node("l2", "files.list", { path: "C:\\b" });
+    node("dentro", "flow.foreach", { items: "{{nodes.l2.files}}", itemName: "item" });
+    node("t", "input.type_text", { text: "dentro={{item.name}}" });
+    node("apos", "input.type_text", { text: "fora={{item.name}}" });
+    node("end", "flow.end");
+    edge("start", "next", "l1"); edge("l1", "success", "fora"); edge("fora", "body", "l2"); edge("l2", "success", "dentro");
+    edge("dentro", "body", "t"); edge("t", "success", "dentro"); edge("dentro", "done", "apos"); edge("apos", "success", "fora"); edge("fora", "done", "end");
+    const { calls, result } = run((req) => req.action !== "files.list" ? { kind: "completed", outputs: {} } : { kind: "completed", outputs: { count: 0, files: req.config["path"] === "C:\\a" ? [file("A1"), file("A2")] : [file("b1")] } });
+    await result;
+    expect(calls.filter((c) => c.action === "input.type_text").map((c) => c.config["text"])).toEqual(["dentro=b1", "fora=A1", "dentro=b1", "fora=A2"]);
+  });
+
+  it("a lista é lida uma vez; mudar o resultado do nó no meio não altera o laço", async () => {
+    eachFlow();
+    let listings = 0;
+    const { calls, result } = run((req) => {
+      if (req.action === "files.list") return { kind: "completed", outputs: { count: 2, files: [file("a"), file("b")] }, ...(listings++, {}) };
+      return { kind: "completed", outputs: {} };
+    });
+    await result;
+    expect(listings).toBe(1);
+    expect(calls.filter((c) => c.action === "files.move")).toHaveLength(2);
+  });
+
+  it("o resultado não é uma lista: falha com mensagem clara", async () => {
+    eachFlow();
+    const { result } = run(listing("não sou uma lista"));
+    expect(await result).toMatchObject({ status: "failed", error: { code: "INVALID_CONFIG", message: expect.stringContaining("não é uma lista") } });
+  });
+
+  it("falha dentro do corpo interrompe e aponta o nó; cancelar interrompe o laço", async () => {
+    eachFlow();
+    let n = 0;
+    const failing = run((req) => req.action === "files.list" ? { kind: "completed", outputs: { files: [file("a"), file("b"), file("c")] } } : ++n === 2 ? { kind: "failed", error: { code: "X", message: "sem permissão" } } : { kind: "completed", outputs: {} });
+    expect(await failing.result).toMatchObject({ status: "failed", error: { message: "Mover arquivo: sem permissão" } });
+    expect(failing.calls.filter((c) => c.action === "files.move")).toHaveLength(2); // parou no segundo
+
+    eachFlow();
+    const ctl = new AbortController();
+    let m = 0;
+    const cancelled = run((req) => req.action === "files.list" ? { kind: "completed", outputs: { files: Array.from({ length: 50 }, (_, i) => file(`f${i}`)) } } : (++m === 3 && ctl.abort(), { kind: "completed", outputs: {} }), { signal: ctl.signal });
+    expect((await cancelled.result).status).toBe("cancelled");
+    expect(cancelled.calls.filter((c) => c.action === "files.move")).toHaveLength(3);
+  });
+
+  it("execuções simultâneas do mesmo fluxo não misturam itens", async () => {
+    eachFlow();
+    const slow = (names: string[]): Script => async (req) => {
+      await sleep(5);
+      return req.action === "files.list" ? { kind: "completed", outputs: { files: names.map((n) => file(n)) } } : { kind: "completed", outputs: {} };
+    };
+    const a = run(slow(["a1", "a2", "a3"]), { executionId: "A" });
+    const b = run(slow(["b1", "b2"]), { executionId: "B" });
+    await Promise.all([a.result, b.result]);
+    expect(a.calls.filter((c) => c.action === "files.move").map((c) => c.config["source"])).toEqual(["C:\\in\\a1", "C:\\in\\a2", "C:\\in\\a3"]);
+    expect(b.calls.filter((c) => c.action === "files.move").map((c) => c.config["source"])).toEqual(["C:\\in\\b1", "C:\\in\\b2"]);
+  });
+
+  it("listas grandes (2000 itens) percorrem sem estourar o limite de passos", async () => {
+    eachFlow();
+    const { calls, result } = run(listing(Array.from({ length: 2000 }, (_, i) => file(`f${i}.txt`))));
+    expect((await result).status).toBe("completed");
+    expect(calls.filter((c) => c.action === "files.move")).toHaveLength(2000);
   });
 });
