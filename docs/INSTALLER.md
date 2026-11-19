@@ -25,7 +25,7 @@ Instalação por usuário (`perMachine: false`): **não pede administrador**, e 
 Sem certificado o instalador sai **não assinado** (SmartScreen mostrará "editor desconhecido"; PyInstaller também pode gerar falso positivo de antivírus). Com certificado: defina `CSC_LINK` e `CSC_KEY_PASSWORD` e remova `signAndEditExecutable: false`. Não há certificado neste projeto.
 
 ## O que foi verificado (Linux, `npm run package:dir`)
-- O pacote é gerado e contém `app.asar` (~18 MB), `resources/engine` (motor congelado; ~34 MB medidos antes de incluir playwright/pillow, agora ~245 MB em Linux) e **nenhum teste** (`*.test.*`).
+- O pacote é gerado e contém `app.asar` (~18 MB), `resources/engine` (motor congelado; ~34 MB medidos antes de incluir playwright/pillow, agora ~245 MB em Linux e 162 MB no Windows) e **nenhum teste** (`*.test.*`).
 - **O app empacotado abre, acha sozinho o motor em `resources/engine` (sem repositório nem Python do dev), executa um fluxo e grava os dados em `userData`** (e2e `packaged.spec.ts`, roda se `release/linux-unpacked` existir).
 - Migração com **dados reais** de uma versão antiga e recusa de banco de versão futura (testes).
 - Memória em repouso (app empacotado, Linux/xvfb): **~493 MB** de working set somando os processos do Electron (Browser 164, GPU 137 — render de software do xvfb, Tab 114, Utility 78), **fora** do processo Python do motor. **Não otimizado; não medido no Windows nem durante execuções longas.**
