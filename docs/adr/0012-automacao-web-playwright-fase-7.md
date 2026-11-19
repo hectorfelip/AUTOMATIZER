@@ -1,6 +1,6 @@
 # ADR 0012 — Automação web com Playwright (Fase 7, parte web)
 
-**Status:** aprovada pelo Hector (dependência `playwright`, nós web testados em páginas locais). Uso no Windows (Edge/Chrome do sistema) **não verificado**. O **gravador** da Fase 7 **não** foi feito (ver "Fora do escopo").
+**Status:** **aprovada pelo Hector** (aprovação formal dada na sessão). Itens que dependem do Windows seguem **não verificados** (ver relatório da fase).
 
 ## Decisões
 1. **Dependência opcional do motor**: `playwright==1.65.2` em `engine/python/requirements-web.txt` (fora de `requirements-windows.txt`, para não alterar o empacotamento já validado). Importada só quando um nó web roda; sem ela o nó falha com `DEPENDENCY_MISSING` e mensagem clara. `playwright` entra em `optionalModules` do `ready`; o `--selftest` do executável congelado continua cobrindo só `pywinauto`/`pyautogui`.

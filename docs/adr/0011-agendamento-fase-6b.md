@@ -1,6 +1,6 @@
 # ADR 0011 — Agendamento com o Agendador de Tarefas do Windows (Fase 6b)
 
-**Status:** proposta — aguardando aval do Hector. ⚠️ `ARCHITECTURE.md §15` mantém a "estratégia final de agendamento" aberta até haver protótipo em Windows real; esta implementação segue o que o `PROJECT_SPEC §4.8` já nomeia (Agendador de Tarefas), mas **nada do lado Windows foi executado**.
+**Status:** **aprovada pelo Hector** (aprovação formal dada na sessão). Itens que dependem do Windows seguem **não verificados** (ver relatório da fase).
 
 ## Decisões
 1. **Quem dispara é o Windows, não o app.** O app não mantém timers próprios (não depende de estar aberto). Cada agendamento vira uma tarefa `AutomationStudio\<id-do-agendamento>` criada com `schtasks /Create /XML`, que chama o próprio executável com `--run-automation=<id> --schedule=<id>`. O banco guarda o que o usuário **quer**; a coluna `task_state` (`synced`/`error`/`unsupported`) diz se o Windows já sabe — falha ao registrar nunca perde o agendamento (aparece o motivo e "Tentar registrar de novo").

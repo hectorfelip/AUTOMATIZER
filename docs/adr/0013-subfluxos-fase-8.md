@@ -1,6 +1,6 @@
 # ADR 0013 — Subfluxos reutilizáveis: "Chamar fluxo" (Fase 8)
 
-**Status:** aprovada pelo Hector (propor ADR e implementar). Sem mudança no schema do documento nem no banco.
+**Status:** **aprovada pelo Hector** (aprovação formal dada na sessão). Itens que dependem do Windows seguem **não verificados** (ver relatório da fase).
 
 ## Decisão
 1. **Um subfluxo é outra automação.** O nó `flow.subflow` ("Chamar fluxo", categoria Controle) executa a **versão salva** de uma automação **ativa**, no mesmo processo de execução, e segue pela saída `success` (ou `error`, tratada como em qualquer nó).

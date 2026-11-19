@@ -1,6 +1,6 @@
 # ADR 0014 — API de plugins de ações (Fase 8)
 
-**Status:** **opção A (declarativa) IMPLEMENTADA** sob a diretriz `/goal` (seguir até o fim), por ser a recomendada e a de menor risco — **aguarda sua confirmação formal; reversível** (remover o serviço/migração `0005`). **Opção B (código Python) NÃO implementada.** Formato e regras em `docs/PLUGINS.md`. Roadmap: "Definir API de plugins de ações", "Documentar criação de novos nós"; critério: "plugins são validados e carregados de forma controlada".
+**Status:** **aprovada pelo Hector** (aprovação formal dada na sessão). Itens que dependem do Windows seguem **não verificados** (ver relatório da fase). **Opção B (plugins com código) NÃO aprovada nem implementada.**
 
 ## O problema de segurança
 Um plugin que traz **código Python** roda dentro do motor com **todas as permissões do usuário** (arquivos, rede, teclado/mouse). Isso colide com o invariante "sem shell arbitrário; lista explícita de ações permitidas" e com a importação de fluxos nunca executar nada. "Controlado" precisa significar: **o usuário escolhe, vê o que é, e nada carrega sozinho**.

@@ -1,6 +1,6 @@
 # ADR 0010 — Importação e exportação de fluxos (Fase 6a)
 
-**Status:** implementada dentro do que `PROJECT_SPEC.md §4.9` já pede (JSON versionado, resumo antes de importar, rejeitar inválido, nunca executar). Só o **formato do arquivo** e um **código de erro novo** são decisões novas — aguardam seu aval.
+**Status:** **aprovada pelo Hector** (aprovação formal dada na sessão). Itens que dependem do Windows seguem **não verificados** (ver relatório da fase).
 
 ## Decisões
 1. **Envelope versionado** em volta do fluxo: `{ format: "automation-studio.workflow", formatVersion: 1, exportedAt, appVersion, automation: {name, description}, workflow: <WorkflowDocument> }`. Duas versões independentes: `formatVersion` (envelope) e `workflow.schemaVersion` (fluxo). Qualquer uma desconhecida é **rejeitada** com mensagem que diz qual versão o app entende. Campos extras (em qualquer nível, via `strictObject`) são rejeitados — o arquivo nunca carrega ações/código além do que o schema define.

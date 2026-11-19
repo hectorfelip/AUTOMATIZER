@@ -1,6 +1,6 @@
 # ADR 0009 — Execução, depuração e histórico (Fase 5)
 
-**Status:** proposta — aguardando aval do Hector. Itens marcados ⚠️ desviam dos documentos-base. A captura de tela real e o fluxo no Windows **não foram verificados** (ver relatório da fase).
+**Status:** **aprovada pelo Hector** (aprovação formal dada na sessão). Itens que dependem do Windows seguem **não verificados** (ver relatório da fase).
 
 ## Contexto
 A Fase 5 pede painel de execução, pausa/continuar, passo a passo, executar a partir de um nó, breakpoints, visualização de variáveis, histórico e logs persistidos, filtros, política de erro e captura de diagnóstico opcional. O ADR 0006 deixou explícito que histórico, logs, vínculo com versões e `errorPolicy: "continue"` ficavam para esta fase.
