@@ -6,8 +6,8 @@ Ferramenta: **electron-builder** (já prevista em `ARCHITECTURE.md`), alvo **NSI
 ```bash
 py -3 -m venv .venv-engine
 .\.venv-engine\Scripts\Activate.ps1
-pip install -r engine\python\requirements-build.txt -r engine\python\requirements-windows.txt
-python scripts\build-engine.py                      # motor congelado -> engine\python\dist\automation-engine\
+pip install -r engine\python\requirements-build.txt -r engine\python\requirements-windows.txt -r engine\python\requirements-web.txt -r engine\python\requirements-recorder.txt -r engine\python\requirements-vision.txt
+python scripts\build-engine.py                      # motor congelado (só inclui o que estiver instalado: confira a linha "módulos opcionais incluídos") -> engine\python\dist\automation-engine\
 npm ci
 npm run package:win -w @automation-studio/desktop    # instalador em release\
 ```
