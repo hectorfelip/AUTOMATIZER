@@ -13,7 +13,7 @@ Estado em Linux: Fases 0–6b, 7 (web), 8 (subfluxos) e 9 (empacotamento parcial
 | **Gravador** (Fase 7) | [ADR 0016](adr/0016-gravador-proposta.md) | Protótipo com `pynput` (rode `scripts/spike-recorder.py` no Windows); desenho com indicador sempre visível, modo senha, revisão antes de criar; decidir também se entra um nó "clicar em elemento UIA" |
 
 ## 3. Validar no Windows (nada disto roda no Linux)
-1. `python -m pip install -r engine\python\requirements-windows.txt` e `python scripts\verify-actions.py` — arquivos 11/11 e abrir app **já passaram**; falta janela/teclado/mouse.
+1. ✅ `verify-actions.py` **passou por inteiro no Windows** (arquivos, abrir app, janela/teclado/mouse) — Fase 4 validada. Falta só DPI/escalas e apps elevados.
 2. App em modo dev: Passo a passo, breakpoint, Pausar/Continuar, "a partir daqui", falha → Histórico, captura de tela (`docs/reviews/fase-5.md`).
 3. Exportar/Importar com os diálogos reais (`docs/reviews/fase-6a.md`).
 4. Agendamento "uma vez" em 2 min; ver a tarefa em `AutomationStudio` no Agendador do Windows (`docs/reviews/fase-6b.md`) — **só funciona no app instalado**.

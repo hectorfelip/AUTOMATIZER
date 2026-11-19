@@ -107,10 +107,10 @@ Desenvolver em entregas verticais. Cada fase deve terminar com algo executável 
 - [x] Implementar criar pasta.
 - [x] Implementar copiar e mover arquivos.
 - [x] Implementar renomear arquivo.
-- [ ] Implementar abrir aplicativo. *(implementado e testado com dublês; falta validar no Windows: `scripts/verify-actions.py`)*
-- [ ] Implementar localizar e ativar janela. *(implementado e testado com dublês; falta validar no Windows: `scripts/verify-actions.py`)*
-- [ ] Implementar digitar texto. *(implementado e testado com dublês; falta validar no Windows: `scripts/verify-actions.py`)*
-- [ ] Implementar clique e teclas. *(implementado e testado com dublês; falta validar no Windows: `scripts/verify-actions.py`)*
+- [x] Implementar abrir aplicativo. *(validado no Windows real: `scripts/verify-actions.py` passou)*
+- [x] Implementar localizar e ativar janela. *(validado no Windows real: `scripts/verify-actions.py` passou)*
+- [x] Implementar digitar texto. *(validado no Windows real: `scripts/verify-actions.py` passou)*
+- [x] Implementar clique e teclas. *(validado no Windows real: `scripts/verify-actions.py` passou)*
 - [x] Implementar resultado estruturado por ação.
 - [x] Implementar “Para cada item” e resultado dos nós nas expressões *(acrescentado por decisão do Hector; ADR 0008)*.
 - [x] Criar exemplos prontos.

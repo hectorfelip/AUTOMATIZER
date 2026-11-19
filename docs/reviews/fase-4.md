@@ -49,3 +49,6 @@ Sem `eval`. Lista **fechada** de formas; segmentos só identificadores/posiçõe
 - ✅ **Arquivos (11/11):** listar com filtro, existência (sim/não), criar pasta, copiar (curinga), conflito sem sobrescrever (`DESTINATION_EXISTS`, nada alterado), mover sobrescrevendo, renomear (nome inválido recusado), caminho relativo recusado, **acentos e espaços**.
 - ✅ **Abrir aplicativo** (`notepad.exe`, PID real).
 - ⏳ **Janela/teclado/mouse:** falhou com `DEPENDENCY_MISSING` — o Python que rodou o script não importava `pywinauto` (provavelmente o Python do sistema, fora do venv do motor). **Não é falha da lógica**; falta rodar de novo depois de `python -m pip install -r engine\python\requirements-windows.txt`. A mensagem de erro agora informa o import que falhou e o Python em uso, e o script avisa isso no início.
+
+## Atualização final — Windows (Hector): `verify-actions.py` PASSOU
+Depois de `python -m pip install -r engine\python\requirements-windows.txt`, o script passou por inteiro no Windows real: arquivos, abrir aplicativo e **janela/teclado/mouse**. A falha anterior (`DEPENDENCY_MISSING`) era só o Python em uso sem `pywinauto`. **As 4 tarefas de Windows da Fase 4 estão validadas.** Ainda não exercitados em Windows: DPI/escalas (cliques por coordenada), aplicativos elevados e o app Electron iniciando o motor congelado.

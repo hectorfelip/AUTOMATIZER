@@ -1,7 +1,7 @@
 # Notas de versão
 
 ## [Não lançada] — MVP em desenvolvimento (0.x)
-Linux verificado; Windows pendente nos itens marcados em `docs/reviews/`.
+Linux verificado; **ações de arquivo, abrir app, janela, teclado e mouse validadas no Windows** (`verify-actions.py`). Demais itens de Windows pendentes, marcados em `docs/reviews/`.
 
 ### Adicionado
 - **Fase 8 (plugins):** plugins **declarativos** (nós novos por composição de nós embutidos, sem código), instalação manual com resumo, ativar/desativar/remover (ADR 0014 opção A, `docs/PLUGINS.md`). Plugins com código **não** existem.
