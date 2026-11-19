@@ -184,7 +184,7 @@ Só inicia após a Fase 6a aceita; não bloqueia o MVP.
 - [x] Implementar espera por elementos.
 - [x] Criar testes em páginas de demonstração.
 
-> Gravador: **implementado** (ADR 0016); captura real dentro do app, faixa vermelha, minimizar/restaurar e atalhos globais **ainda não verificados no Windows**. Sem clique por elemento UIA.
+> Gravador: **implementado** (ADR 0016); **no Windows o Hector rodou o app com o motor congelado e o gravador ("tudo certo", 19/11, sem detalhar item a item)**; faixa vermelha, minimizar/restaurar e Ctrl+Alt+P/S não foram confirmados individualmente. Sem clique por elemento UIA.
 
 ### Critérios de aceite
 - Gravação pode ser revisada antes de virar fluxo.

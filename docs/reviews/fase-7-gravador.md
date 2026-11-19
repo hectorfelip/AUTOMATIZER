@@ -7,8 +7,8 @@ Verificação em Linux com o **processo gravador real** alimentado por uma fonte
 | Gravação revisada antes de virar fluxo | ✅ | e2e: revisão aparece sozinha ao parar; criar só depois |
 | Usuário corrige as ações geradas | ✅ | editar X/texto/teclas/segundos, apagar, reordenar (e2e edita e apaga) |
 | Excluir/mascarar campos sensíveis | ✅ | **modo senha**: processo nunca emite o caractere; teste prova que a senha não aparece em stdout, stderr, tela, **banco de dados** nem no fluxo |
-| Indicador visual, pausa e parada | ⚠️ implementado, **não verificado no Windows** | faixa `alwaysOnTop` que não captura cliques; atalhos globais Ctrl+Alt+R/P/S; botões |
-| Captura real de mouse/teclado no app | ⚠️ **não verificada no Windows** | spike validou `pynput`; integração só testada com fonte falsa |
+| Indicador visual, pausa e parada | ⚠️ implementado; Hector deu "tudo certo" no teste geral, **sem confirmar item a item** (faixa, minimizar/restaurar, Ctrl+Alt+P/S) | faixa `alwaysOnTop` que não captura cliques; atalhos globais Ctrl+Alt+R/P/S; botões |
+| Captura real de mouse/teclado no app | ✅ **Windows (Hector, 19/11, "tudo certo")** com o app rodando o motor congelado; antes disso, o conserto do `write EPIPE` | spike validou `pynput`; `verify-engine.py` passou com pynput congelado |
 
 Testes: 14 pytest (processador e processo), 11 de conversão, 9 do serviço, criação, 7 do IPC, 4 e2e (gravar→revisar→criar; descartar; passos inválidos; fora do Windows). Nunca executa a automação criada (0 execuções).
 
