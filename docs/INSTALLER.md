@@ -30,6 +30,10 @@ Sem certificado o instalador sai **não assinado** (SmartScreen mostrará "edito
 - Migração com **dados reais** de uma versão antiga e recusa de banco de versão futura (testes).
 - Memória em repouso (app empacotado, Linux/xvfb): **~493 MB** de working set somando os processos do Electron (Browser 164, GPU 137 — render de software do xvfb, Tab 114, Utility 78), **fora** do processo Python do motor. **Não otimizado; não medido no Windows nem durante execuções longas.**
 
+## Verificado no Windows (Hector, 19/11)
+- `npm run package:win` gera `release\win-unpacked` e o app empacotado (`release\win-unpacked\Automation Studio.exe`) **abre**. Antes do conserto da segunda abertura/falha de carga silenciosa (commit `7444d7d`) um instalador anterior "não abria"; causa não confirmada.
+- Pendente de confirmar: o arquivo `release\Automation Studio Setup 0.0.0.exe` concluído, a instalação por ele, o Dashboard com motor **Disponível** no app empacotado e a desinstalação.
+
 ## O que NÃO foi verificado (precisa do Windows)
 Build do instalador NSIS; instalar em Windows limpo; atalhos; desinstalar (e que os dados ficam); atualizar por cima sem corromper o banco real; o motor congelado **do Windows** iniciado pelo app instalado; SmartScreen/antivírus; DPI e múltiplas resoluções; apps elevados; agendador e `process.execPath` do app instalado; o motor congelado agora inclui playwright/pynput/OCR (~245 MB em Linux, ver `engine-packaging.md`; `verify-engine.py` já passou no Windows com pynput/winrt congelados) — conferir `verify-engine.py` e o tamanho do instalador.
 
