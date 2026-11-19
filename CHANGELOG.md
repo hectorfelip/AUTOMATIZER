@@ -4,6 +4,7 @@
 Linux verificado; **ações de arquivo, abrir app, janela, teclado e mouse validadas no Windows** (`verify-actions.py`). Demais itens de Windows pendentes, marcados em `docs/reviews/`.
 
 ### Adicionado
+- **Motor congelado com playwright, pillow, pynput e OCR (winrt):** `build-engine.py` os inclui quando instalados e `--selftest`/`verify-engine.py` conferem os imports dentro do executável. Verificado em Linux (pillow + playwright; pasta de 35 → ~245 MB); **pynput/winrt congelados não verificados no Windows**.
 - **Localizar imagem na tela:** `vision.find_image` procura um recorte (PNG/JPG/BMP) na tela, esperando aparecer, só com Pillow (sem OpenCV/numpy); exige mesma escala/DPI do recorte. Testado em Linux com tela falsa; **falta rodar no Windows** (`scripts\verify-vision.py --image`).
 - **Clicar em elemento (UIA):** `windows.click_element` clica em botão/menu/campo pelo nome ou AutomationId (pywinauto), esperando aparecer; preferível a coordenadas. **Validado no Windows** (`verify-uia.py`: menu Arquivo do Bloco de Notas clicado em 1,22 s).
 - **Fase 7 (gravador):** grava mouse e teclado (processo separado, `pynput`), faixa de gravação sempre visível, pausa/parada por atalhos globais, **modo senha** (o caractere nunca sai do processo), revisão editável antes de virar fluxo; só Windows (ADR 0016). Captura real, faixa e atalhos **não verificados no Windows**.

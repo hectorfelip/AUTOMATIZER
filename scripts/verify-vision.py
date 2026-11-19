@@ -21,6 +21,24 @@ from automation_engine.runtime import registry  # noqa: E402
 from automation_engine.runtime.context import ActionContext, ActionError  # noqa: E402
 
 
+def diagnose_image(path: str, cfg: dict) -> None:
+    """Por que não achou? Mostra o tamanho do recorte × tela e o melhor ponto, e salva o que o motor VIU (para comparar a olho)."""
+    from automation_engine.actions import vision_image as vi
+
+    tpl = vi.load_template(path)
+    region = (cfg["regionX"], cfg["regionY"], cfg["regionWidth"], cfg["regionHeight"]) if "regionX" in cfg else None
+    shot = vi.WindowsScreen().capture(region)
+    found, seen = vi.find_image(shot, tpl, 0.0)
+    out = Path(path).with_name("verify-vision-tela.png")
+    shot.save(out)
+    print(f"[vision] diagnóstico: recorte {tpl.width}x{tpl.height} (contraste {tpl.baseline:.1f}); tela vista {shot.size[0]}x{shot.size[1]}")
+    if found:
+        print(f"[vision] melhor ponto: ({found.x},{found.y}) similaridade {found.similarity}. Se esse ponto não é o ícone, o recorte difere da tela (escala/DPI, tema, cursor, transparência).")
+    else:
+        print("[vision] o recorte é maior que a tela vista (confira região/escala).")
+    print(f"[vision] captura salva em {out} — abra e compare com o recorte (se estiver preta/vazia, o problema é a captura).")
+
+
 def main_image(argv: list[str]) -> int:
     path = argv[argv.index("--image") + 1] if len(argv) > argv.index("--image") + 1 else ""
     cfg: dict = {"imagePath": path, "timeoutSeconds": 8}
@@ -36,6 +54,8 @@ def main_image(argv: list[str]) -> int:
         out = registry.get_action("vision.find_image")(ctx) or {}  # type: ignore[misc]
     except ActionError as e:
         print(f"[vision] FALHA {e.code}: {e.message}")
+        if e.code == "IMAGE_NOT_FOUND_ON_SCREEN":
+            diagnose_image(path, cfg)
         return 1
     o = out["outputs"]
     print(f"[vision] OK em {time.monotonic() - t0:.2f} s: centro=({o['centerX']},{o['centerY']}) caixa=({o['x']},{o['y']},{o['width']}x{o['height']}) similaridade={o['similarity']} tentativas={o['attempts']}")

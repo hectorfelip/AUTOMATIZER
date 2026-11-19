@@ -25,13 +25,13 @@ Instalação por usuário (`perMachine: false`): **não pede administrador**, e 
 Sem certificado o instalador sai **não assinado** (SmartScreen mostrará "editor desconhecido"; PyInstaller também pode gerar falso positivo de antivírus). Com certificado: defina `CSC_LINK` e `CSC_KEY_PASSWORD` e remova `signAndEditExecutable: false`. Não há certificado neste projeto.
 
 ## O que foi verificado (Linux, `npm run package:dir`)
-- O pacote é gerado e contém `app.asar` (~18 MB), `resources/engine` (motor congelado, ~34 MB) e **nenhum teste** (`*.test.*`).
+- O pacote é gerado e contém `app.asar` (~18 MB), `resources/engine` (motor congelado; ~34 MB medidos antes de incluir playwright/pillow, agora ~245 MB em Linux) e **nenhum teste** (`*.test.*`).
 - **O app empacotado abre, acha sozinho o motor em `resources/engine` (sem repositório nem Python do dev), executa um fluxo e grava os dados em `userData`** (e2e `packaged.spec.ts`, roda se `release/linux-unpacked` existir).
 - Migração com **dados reais** de uma versão antiga e recusa de banco de versão futura (testes).
 - Memória em repouso (app empacotado, Linux/xvfb): **~493 MB** de working set somando os processos do Electron (Browser 164, GPU 137 — render de software do xvfb, Tab 114, Utility 78), **fora** do processo Python do motor. **Não otimizado; não medido no Windows nem durante execuções longas.**
 
 ## O que NÃO foi verificado (precisa do Windows)
-Build do instalador NSIS; instalar em Windows limpo; atalhos; desinstalar (e que os dados ficam); atualizar por cima sem corromper o banco real; o motor congelado **do Windows** iniciado pelo app instalado; SmartScreen/antivírus; DPI e múltiplas resoluções; apps elevados; agendador e `process.execPath` do app instalado; `playwright` **não** está no motor congelado (ver `engine-packaging.md`).
+Build do instalador NSIS; instalar em Windows limpo; atalhos; desinstalar (e que os dados ficam); atualizar por cima sem corromper o banco real; o motor congelado **do Windows** iniciado pelo app instalado; SmartScreen/antivírus; DPI e múltiplas resoluções; apps elevados; agendador e `process.execPath` do app instalado; o motor congelado agora inclui playwright/pynput/OCR (~245 MB em Linux, ver `engine-packaging.md`; **pynput e winrt congelados ainda não verificados no Windows**) — conferir `verify-engine.py` e o tamanho do instalador.
 
 ## Roteiro de teste no Windows limpo
 1. Gerar o instalador (acima) e instalá-lo numa máquina/VM **sem Python**.

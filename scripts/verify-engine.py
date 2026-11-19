@@ -17,6 +17,7 @@ import threading
 import time
 
 TIMEOUT = 20.0
+WINDOWS_ONLY = {"pywinauto", "pyautogui", "pynput", "winrt"}  # PIL e playwright valem em qualquer SO
 
 
 def main(argv: list[str]) -> int:
@@ -50,7 +51,7 @@ def main(argv: list[str]) -> int:
         data = json.loads(st.stdout.decode().strip().splitlines()[-1])
         check("executável roda (--selftest)", st.returncode == 0, f"frozen={data['frozen']} python={data['python']} {data['platform']}")
         for mod, res in data["imports"].items():
-            check(f"importa {mod}", res == "ok", res, windows_only=True)
+            check(f"importa {mod}", res == "ok", res, windows_only=mod.split(".")[0] in WINDOWS_ONLY)
     except Exception as e:  # noqa: BLE001
         check("executável roda (--selftest)", False, f"{type(e).__name__}: {e}")
         return report(results)

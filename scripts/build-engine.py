@@ -11,7 +11,15 @@ import sys
 from pathlib import Path
 
 ENGINE = Path(__file__).resolve().parent.parent / "engine" / "python"
-OPTIONAL = ["pywinauto", "pyautogui"]  # incluídas só se estiverem instaladas neste ambiente
+# Incluídas só se estiverem instaladas neste ambiente. `collect-all` traz código, dados e binários (driver Node do playwright,
+# backends do pynput carregados dinamicamente, extensões .pyd do winrt). O build NÃO prova que importam: rode verify-engine.py.
+OPTIONAL = [
+    "pywinauto", "pyautogui", "PIL", "playwright", "pynput",
+    "winrt.runtime", "winrt.windows.globalization", "winrt.windows.graphics.imaging", "winrt.windows.media.ocr",
+    "winrt.windows.storage", "winrt.windows.storage.streams", "winrt.windows.foundation", "winrt.windows.foundation.collections",
+]
+# Distribuições cujo nome no pip difere do módulo (para `--copy-metadata`).
+METADATA = {"PIL": "pillow"}
 
 
 def main() -> int:
@@ -26,9 +34,15 @@ def main() -> int:
     ]
     included = []
     for module in OPTIONAL:
-        if importlib.util.find_spec(module) is not None:
+        try:
+            found = importlib.util.find_spec(module) is not None
+        except (ImportError, ValueError):  # pacote-pai ausente (ex.: winrt fora do Windows)
+            found = False
+        if found:
             # collect-all: código, dados e binários do pacote; copy-metadata: para importlib.metadata.version() funcionar congelado
-            cmd += ["--collect-all", module, "--copy-metadata", module]
+            cmd += ["--collect-all", module]
+            if "." not in module:
+                cmd += ["--copy-metadata", METADATA.get(module, module)]
             included.append(module)
     cmd.append(str(ENGINE / "entry.py"))
 

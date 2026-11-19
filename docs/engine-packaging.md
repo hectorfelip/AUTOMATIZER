@@ -41,5 +41,15 @@ No Dashboard, o card "Motor de automação" deve mostrar **Disponível**. Depois
 `resources/engine/automation-engine(.exe)` no app instalado, ou o caminho em `AUTOMATION_STUDIO_ENGINE` (ver `docs/CONVENTIONS.md`).
 
 
-## Playwright (Fase 7 — não empacotado ainda)
-`playwright` está em `requirements-web.txt`, **fora** do executável congelado: o empacotamento validado no Windows (pywinauto/pyautogui) não foi alterado. Antes de incluí-lo é preciso um spike no Windows: o pacote embute um driver Node (~dezenas de MB) que o PyInstaller precisa coletar (`--collect-all playwright`), e o motor usa o **Edge/Chrome do sistema** (sem embutir Chromium). Até lá, os nós "Navegador" no app instalado respondem `DEPENDENCY_MISSING`.
+## Bibliotecas opcionais no executável (aprovado pelo Hector)
+`scripts/build-engine.py` agora inclui, quando instaladas no venv de build: `pillow`, `playwright` (`requirements-web.txt`), `pynput` (`requirements-recorder.txt`) e os `winrt-*` do OCR (`requirements-vision.txt`), além de pywinauto/pyautogui. Para o build completo no Windows, instale **todos** os arquivos de requisitos:
+
+```bash
+pip install -r engine\python\requirements-build.txt -r engine\python\requirements-windows.txt -r engine\python\requirements-web.txt -r engine\python\requirements-recorder.txt -r engine\python\requirements-vision.txt
+python scripts\build-engine.py
+python scripts\verify-engine.py engine\python\dist\automation-engine\automation-engine.exe --clean-path
+```
+
+`--selftest` importa, **dentro do executável congelado**, `PIL`, `playwright.sync_api`, `pynput.keyboard/mouse` e os módulos `winrt.windows.*` do OCR; o `verify-engine.py` falha se algum não importar (pynput e winrt só se aplicam ao Windows). O motor usa o **Edge/Chrome do sistema** (não embute Chromium).
+
+**Evidência:** em **Linux** (Python 3.13) o executável com `pillow` + `playwright` foi gerado e passou no `verify-engine.py` (PIL e playwright importam congelados; handshake 0,08 s). **Custo: a pasta foi de 35 MB para ~245 MB** — o driver Node do playwright responde por ~161 MB (o instalador NSIS comprime, mas conte dezenas de MB a mais). Se o tamanho incomodar, o caminho é tirar o playwright do executável (nós "Navegador" voltam a responder `DEPENDENCY_MISSING`). **Não verificado no Windows:** `pynput` e `winrt-*` congelados (coleta de extensões `.pyd`/backends dinâmicos); gerar e rodar `verify-engine.py` lá é o teste.

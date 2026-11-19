@@ -2,6 +2,7 @@ import json
 import subprocess
 import sys
 
+from automation_engine.runtime.main import SELFTEST_MODULES
 from conftest import ROOT, EngineProc
 
 TERMINAL = {"action_completed", "action_failed", "action_cancelled"}
@@ -201,7 +202,7 @@ def test_test_actions_absent_without_flag():
 def test_selftest_prints_one_json_line():
     out = subprocess.run([sys.executable, "-m", "automation_engine", "--selftest"], capture_output=True, cwd=ROOT, timeout=10)
     data = json.loads(out.stdout)
-    assert set(data["imports"]) == {"pywinauto", "pyautogui"} and data["python"]
+    assert set(data["imports"]) == set(SELFTEST_MODULES) and {"PIL", "playwright.sync_api", "pynput.keyboard", "winrt.windows.media.ocr"} <= set(SELFTEST_MODULES) and data["python"]
 
 
 def test_acoes_em_sequencia_na_mesma_execucao_nunca_dao_BUSY(engine):

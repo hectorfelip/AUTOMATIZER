@@ -5,9 +5,12 @@ from typing import Optional, Sequence
 from .. import actions  # noqa: F401  (registra as ações embutidas)
 from .engine import Engine
 
-# O selftest cobre só as bibliotecas já validadas no empacotamento (Fase 3/4); `playwright` é opcional e ainda não
-# entra no executável congelado (docs/engine-packaging.md).
-SELFTEST_MODULES = ("pywinauto", "pyautogui")
+# Tudo que o executável congelado precisa conseguir importar (docs/engine-packaging.md). `scripts/verify-engine.py` decide
+# quais se aplicam a cada SO (pywinauto/pynput/winrt só no Windows).
+SELFTEST_MODULES = (
+    "pywinauto", "pyautogui", "PIL", "playwright.sync_api", "pynput.keyboard", "pynput.mouse",
+    "winrt.windows.globalization", "winrt.windows.graphics.imaging", "winrt.windows.media.ocr", "winrt.windows.storage",
+)
 
 
 def _selftest() -> int:
