@@ -12,13 +12,13 @@ Desenvolver em entregas verticais. Cada fase deve terminar com algo executável 
 ## Fase 0 — Preparação técnica
 
 ### Tarefas
-- [ ] Criar repositório Git.
-- [ ] Definir convenções de código e branches.
-- [ ] Configurar monorepo ou estrutura de workspaces.
-- [ ] Configurar TypeScript e lint.
-- [ ] Configurar testes automatizados.
-- [ ] Criar documentação de decisões arquiteturais.
-- [ ] Definir padrão de commits e versionamento.
+- [x] Criar repositório Git.
+- [x] Definir convenções de código e branches. *(`docs/CONVENTIONS.md`)*
+- [x] Configurar monorepo ou estrutura de workspaces. *(npm workspaces: `apps/*`, `packages/*`; ADR 0002)*
+- [x] Configurar TypeScript e lint. *(`npm run typecheck`, `npm run lint`)*
+- [x] Configurar testes automatizados. *(Vitest, pytest e Playwright/Electron)*
+- [x] Criar documentação de decisões arquiteturais. *(`docs/adr/`, 16 ADRs)*
+- [x] Definir padrão de commits e versionamento. *(Conventional Commits + SemVer 0.x; `docs/CONVENTIONS.md`)*
 
 ### Critérios de aceite
 - Projeto instala dependências sem erros.
@@ -203,7 +203,7 @@ Só inicia após a Fase 6a aceita; não bloqueia o MVP.
 - [x] Criar subfluxos reutilizáveis. *(ADR 0013)*
 - [x] Criar biblioteca de templates. *(7 exemplos embutidos; "formato final do pacote" segue aberto — ARCHITECTURE §15)*
 
-> **Pendentes:** validar `vision.find_image` no Windows (`scripts/verify-vision.py --image`); `vision.find_text` e UIA **validados no Windows** (Hector, `verify-vision.py "Lixeira"` → similaridade 0,933 em 1,05 s). Critério "ações visuais com timeout e limiar configuráveis": **atendido** para texto e imagem (imagem só testada em Linux). "Plugins validados e carregados de forma controlada": **atendido** para plugins declarativos.
+> **Pendentes:** `vision.find_image` **em espera por decisão do Hector** (testou com um arquivo exibido a 69% do tamanho e deu 0,0 — o casamento é por pixels, na mesma escala; opção "tolerar tamanhos diferentes" proposta e não decidida); `vision.find_text` e UIA **validados no Windows** (Hector, `verify-vision.py "Lixeira"` → similaridade 0,933 em 1,05 s). Critério "ações visuais com timeout e limiar configuráveis": **atendido** para texto e imagem (imagem só testada em Linux). "Plugins validados e carregados de forma controlada": **atendido** para plugins declarativos.
 
 ### Critérios de aceite
 - Ações visuais têm timeout e limiar de confiança configuráveis.
